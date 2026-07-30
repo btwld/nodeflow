@@ -95,7 +95,8 @@ class NodeContainer<T, E> extends StatelessWidget {
                               recognizer
                                 ..onStart = _handleDragStart
                                 ..onUpdate = _handleDragUpdate
-                                ..onEnd = _handleDragEnd;
+                                ..onEnd = _handleDragEnd
+                                ..onCancel = _handleDragCancel;
                             }),
                       },
                       child: _MeasureSize(
@@ -208,9 +209,14 @@ class NodeContainer<T, E> extends StatelessWidget {
     controller.moveNodeBy(node.id, GraphOffset(details.delta));
   }
 
+  // No locked guard here: locking a node mid-drag must not skip the commit,
+  // or the drag session (and the interaction mode) would be stranded.
   void _handleDragEnd(DragEndDetails details) {
-    if (node.locked) return;
     controller.endNodeDrag();
+  }
+
+  void _handleDragCancel() {
+    controller.cancelNodeDrag();
   }
 }
 

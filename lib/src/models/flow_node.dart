@@ -66,9 +66,14 @@ final class FlowNode<T> {
       ports.where((p) => p.kind == PortKind.output);
 
   /// The node's bounds in graph coordinates (position + measured size).
-  GraphRect get bounds => GraphRect.fromLTWH(
-    position.value.dx,
-    position.value.dy,
+  GraphRect get bounds => boundsAt(position.value);
+
+  /// The bounds the node would have at [origin] with its current measured
+  /// size. Used by drag snapping to probe a candidate position without
+  /// mutating [position].
+  GraphRect boundsAt(GraphPosition origin) => GraphRect.fromLTWH(
+    origin.dx,
+    origin.dy,
     measuredSize.value.width,
     measuredSize.value.height,
   );

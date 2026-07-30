@@ -51,11 +51,15 @@ const _guidePadding = 16.0;
 /// centers (left/centerX/right, top/centerY/bottom) is compared per axis and
 /// the closest match within [threshold] graph units wins. The returned delta
 /// carries the softly-snapped adjustment; the guides span both rects.
+///
+/// [FlowController] does not use the default [threshold]: it passes
+/// `snapGuideThreshold / zoom` so the capture radius is a constant *screen*
+/// distance at every zoom level.
 AlignmentSnapResult resolveAlignmentSnap({
   required GraphRect movingBounds,
   required GraphOffset delta,
   required Iterable<GraphRect> others,
-  double threshold = 6.0,
+  double threshold = 8.0,
 }) {
   // Strict `<` below makes the FIRST candidate win ties, giving a stable
   // left/center/right (top/center/bottom) priority when several edges align

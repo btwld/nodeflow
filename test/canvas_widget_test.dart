@@ -169,6 +169,62 @@ void main() {
     expect(c.getNode('a')!.measuredSize.value, const Size(256, 140));
   });
 
+  testWidgets('many small drag events escape an alignment guide', (
+    tester,
+  ) async {
+    final c = FlowController<String, String>();
+    addTearDown(c.dispose);
+    c.addNode(node('anchor', 0, 0, size: const Size(120, 60)));
+    c.addNode(node('a', 4, 300, size: const Size(120, 60)));
+    await pumpCanvas(tester, c);
+
+    // Regression for the snap feedback loop: 1px-per-event mouse movement
+    // (the shape of a slow, precise drag) used to be cancelled forever once
+    // the node snapped onto the anchor's guide.
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byKey(const ValueKey('card-a'))),
+      kind: PointerDeviceKind.mouse,
+    );
+    for (var i = 0; i < 30; i += 1) {
+      await gesture.moveBy(const Offset(1, 0));
+    }
+    await tester.pump();
+
+    // Escaped the guide at x=0 and tracked the pointer (was: pinned at 0).
+    final dragged = c.getNode('a')!.position.value.dx;
+    expect(dragged, greaterThan(20));
+    expect(c.activeGuides.value, isEmpty);
+
+    await gesture.up();
+    await tester.pumpAndSettle();
+    expect(c.getNode('a')!.position.value.dx % 20, 0);
+  });
+
+  testWidgets('at zoom 2 screen deltas convert to graph units', (tester) async {
+    final c = FlowController<String, String>();
+    addTearDown(c.dispose);
+    c.setViewport(const FlowViewport(zoom: 2));
+    c.addNode(node('a', 10, 10, size: const Size(120, 60)));
+    await pumpCanvas(tester, c);
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byKey(const ValueKey('card-a'))),
+      kind: PointerDeviceKind.mouse,
+    );
+    // A short move to spend the 2px mouse pan slop, then the real travel.
+    await gesture.moveBy(const Offset(3, 0));
+    await gesture.moveBy(const Offset(42, 0));
+    await tester.pump();
+
+    // ~45 screen px minus slop, divided by zoom 2 => ~21 graph units.
+    expect(c.getNode('a')!.position.value.dx, closeTo(31, 1.5));
+    expect(c.getNode('a')!.position.value.dy, 10);
+
+    await gesture.up();
+    await tester.pumpAndSettle();
+    expect(c.getNode('a')!.position.value.dx % 20, 0);
+  });
+
   testWidgets('locked node does not move on drag', (tester) async {
     final c = FlowController<String, String>();
     addTearDown(c.dispose);

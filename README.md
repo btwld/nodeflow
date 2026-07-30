@@ -18,7 +18,8 @@ dependencies beyond the Flutter SDK.
 - **Dragging & selection** — single and multi-node drag, locked nodes, grid
   snap on commit, click/toggle/select-all, and shift-drag marquee selection.
 - **Alignment snap guides** — Figma-style soft snapping against other nodes
-  with dashed guide lines while dragging.
+  with dashed guide lines while dragging; the capture radius is a constant
+  screen distance (`FlowController.snapGuideThreshold`, 8px) at every zoom.
 - **Ports & connections** — input/output ports on any node side, drag-to-connect
   with compatible-port detection, a live connection preview, and normalized
   `onConnect` requests (the canvas never mutates your graph).

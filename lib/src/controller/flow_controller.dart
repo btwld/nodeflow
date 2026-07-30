@@ -27,6 +27,7 @@ class FlowController<T, E> extends ChangeNotifier {
     this.minZoom = 0.2,
     this.maxZoom = 4.0,
     this.snapGrid = 20.0,
+    this.snapGuideThreshold = 8.0,
     FlowViewport initialViewport = const FlowViewport(),
   }) : viewport = ValueNotifier(initialViewport);
 
@@ -38,6 +39,12 @@ class FlowController<T, E> extends ChangeNotifier {
 
   /// Grid quantum (graph units) that positions snap to on drag commit.
   final double snapGrid;
+
+  /// Alignment-guide capture radius in *screen* pixels. Divided by the current
+  /// zoom before matching, so the magnet's felt strength on screen stays the
+  /// same at every zoom level. Mutable (like [snapGuidesEnabled]) so an app
+  /// can expose a "snap strength" setting without rebuilding the controller.
+  double snapGuideThreshold;
 
   // Ordered so that insertion order is a stable tie-breaker for z-sorting.
   final Map<String, FlowNode<T>> _nodes = <String, FlowNode<T>>{};
@@ -111,6 +118,15 @@ class FlowController<T, E> extends ChangeNotifier {
   // Nodes touched by the in-flight drag; snapped together on [commitMove].
   final Set<String> _activeMove = <String>{};
 
+  // The in-flight drag session: each dragged node's position at
+  // [beginNodeDrag] plus the raw pointer offset accumulated since. Positions
+  // are recomputed from these every event, so an alignment correction never
+  // feeds back into the next event's input — escaping a guide takes
+  // cumulative pointer travel past the threshold, not one fast event.
+  final Map<String, GraphPosition> _dragStartPositions =
+      <String, GraphPosition>{};
+  GraphOffset _dragRawOffset = GraphOffset.zero;
+
   // Anchor of the in-flight marquee, in graph coordinates.
   GraphPosition? _marqueeAnchor;
 
@@ -139,6 +155,13 @@ class FlowController<T, E> extends ChangeNotifier {
     node.measuredSize.value = existing.measuredSize.value;
     node.zIndex.value = existing.zIndex.value;
     _nodes[node.id] = node;
+    if (_dragStartPositions.containsKey(node.id)) {
+      // Re-anchor an in-flight drag so the caller-supplied position wins and
+      // the drag continues from it instead of reverting on the next event.
+      _dragStartPositions[node.id] = node.position.value.translate(
+        _dragRawOffset * -1,
+      );
+    }
     existing.dispose();
     _bumpStructure();
     return true;
@@ -156,6 +179,7 @@ class FlowController<T, E> extends ChangeNotifier {
     });
 
     _activeMove.remove(id);
+    _dragStartPositions.remove(id);
     if (selection.value.contains(id)) {
       final next = <String>{...selection.value}..remove(id);
       selection.value = Set<String>.unmodifiable(next);
@@ -185,7 +209,25 @@ class FlowController<T, E> extends ChangeNotifier {
   /// selection, the whole selection moves together. Live drag is free-form
   /// except for alignment snapping (when [snapGuidesEnabled]); grid snapping
   /// is applied only on [commitMove]. Locked nodes are skipped.
+  ///
+  /// During a drag session (between [beginNodeDrag] and
+  /// [endNodeDrag]/[cancelNodeDrag]) the deltas accumulate into a raw,
+  /// unsnapped offset and each position is recomputed from its drag-start
+  /// snapshot, so alignment snapping is a pure function of where the pointer
+  /// actually is: a guide releases as soon as the raw position travels past
+  /// [snapGuideThreshold], and the node never drifts away from the cursor.
+  /// Session caveats: the moving set is the one captured at [beginNodeDrag]
+  /// (later selection changes don't join or leave mid-drag), [id] only routes
+  /// the call (every dragged node moves by [delta] — don't loop over a
+  /// selection), and direct writes to [FlowNode.position] on a dragged node
+  /// are overwritten by the next event ([replaceNode] and [commitMove]
+  /// re-anchor the session and therefore do compose).
   void moveNodeBy(String id, GraphOffset delta) {
+    if (_dragStartPositions.containsKey(id)) {
+      _moveDragSession(delta);
+      return;
+    }
+
     final node = _nodes[id];
     if (node == null) return;
 
@@ -213,11 +255,14 @@ class FlowController<T, E> extends ChangeNotifier {
           for (final n in _nodes.values)
             if (!movingIds.contains(n.id)) n.bounds,
         ],
+        threshold: _effectiveSnapThreshold,
       );
       applied = result.delta;
       if (!_sameGuides(activeGuides.value, result.guides)) {
         activeGuides.value = result.guides;
       }
+    } else {
+      _clearGuides();
     }
 
     for (final n in moving) {
@@ -226,11 +271,84 @@ class FlowController<T, E> extends ChangeNotifier {
     }
   }
 
+  // The drag-session path of [moveNodeBy]: positions come from
+  // start + rawOffset (+ alignment adjustment), never from the previous —
+  // possibly snapped — position, so a step the snap cancels is retried from
+  // the pointer's true location on the next event instead of compounding into
+  // a pin that only a fast flick can break.
+  void _moveDragSession(GraphOffset delta) {
+    _dragRawOffset = _dragRawOffset + delta;
+
+    final moving = <(FlowNode<T>, GraphPosition)>[];
+    for (final entry in _dragStartPositions.entries) {
+      final n = _nodes[entry.key];
+      if (n == null) continue;
+      if (n.locked) {
+        // Keep a node locked mid-drag anchored where it stopped, so it does
+        // not teleport by the travel it sat out if it unlocks mid-drag.
+        _dragStartPositions[entry.key] = n.position.value.translate(
+          _dragRawOffset * -1,
+        );
+        continue;
+      }
+      moving.add((n, entry.value.translate(_dragRawOffset)));
+    }
+    if (moving.isEmpty) {
+      _clearGuides();
+      return;
+    }
+
+    var adjust = GraphOffset.zero;
+    // Same large-selection guard as the non-session path above.
+    if (snapGuidesEnabled && moving.length <= 10) {
+      var union = moving.first.$1.boundsAt(moving.first.$2);
+      for (final (n, raw) in moving.skip(1)) {
+        union = union.expandToInclude(n.boundsAt(raw));
+      }
+      final movingIds = {for (final (n, _) in moving) n.id};
+      final result = resolveAlignmentSnap(
+        movingBounds: union,
+        delta: GraphOffset.zero,
+        others: [
+          for (final n in _nodes.values)
+            if (!movingIds.contains(n.id)) n.bounds,
+        ],
+        threshold: _effectiveSnapThreshold,
+      );
+      adjust = result.delta;
+      if (!_sameGuides(activeGuides.value, result.guides)) {
+        activeGuides.value = result.guides;
+      }
+    } else {
+      // Snapping skipped (disabled mid-drag or large selection): drop any
+      // guides left over from an earlier event so a stale guide neither keeps
+      // painting nor makes [commitMove] skip the grid.
+      _clearGuides();
+    }
+
+    for (final (n, raw) in moving) {
+      n.position.value = raw.translate(adjust);
+      _activeMove.add(n.id);
+    }
+  }
+
+  // [snapGuideThreshold] is screen pixels; alignment matching happens in
+  // graph units, so convert at the current zoom. The zoom floor guards the
+  // division against a zero/negative zoom smuggled in via [setViewport].
+  double get _effectiveSnapThreshold =>
+      snapGuideThreshold / math.max(viewport.value.zoom, minZoom);
+
+  void _clearGuides() {
+    if (activeGuides.value.isNotEmpty) activeGuides.value = const [];
+  }
+
   /// Snaps every node moved since the last commit to [snapGrid] and fires
   /// [onMoveCommitted] with their final positions. When alignment guides are
   /// active at commit time the aligned positions win over the grid (grid
   /// snapping would break the just-established alignment by up to half a
-  /// grid cell).
+  /// grid cell). A drag session in flight is re-anchored to the committed
+  /// positions, so a mid-drag commit sticks instead of being undone by the
+  /// next pointer event.
   void commitMove() {
     final aligned = activeGuides.value.isNotEmpty;
     if (aligned) activeGuides.value = const [];
@@ -244,6 +362,13 @@ class FlowController<T, E> extends ChangeNotifier {
       committed[id] = snapped;
     }
     _activeMove.clear();
+    if (_dragStartPositions.isNotEmpty) {
+      for (final id in _dragStartPositions.keys) {
+        final n = _nodes[id];
+        if (n != null) _dragStartPositions[id] = n.position.value;
+      }
+      _dragRawOffset = GraphOffset.zero;
+    }
     if (committed.isNotEmpty) onMoveCommitted?.call(committed);
   }
 
@@ -272,6 +397,14 @@ class FlowController<T, E> extends ChangeNotifier {
       for (final nid in selection.value)
         if (_nodes[nid]?.locked == false) nid,
     };
+    _dragStartPositions
+      ..clear()
+      ..addEntries([
+        for (final nid in moving)
+          if (_nodes[nid] case final FlowNode<T> n)
+            MapEntry(nid, n.position.value),
+      ]);
+    _dragRawOffset = GraphOffset.zero;
     draggingNodeIds.value = Set<String>.unmodifiable(moving);
     mode.value = FlowInteractionMode.draggingNode;
   }
@@ -279,10 +412,41 @@ class FlowController<T, E> extends ChangeNotifier {
   /// Commits the in-flight drag and returns to [FlowInteractionMode.idle].
   void endNodeDrag() {
     commitMove();
+    _dragStartPositions.clear();
+    _dragRawOffset = GraphOffset.zero;
     if (draggingNodeIds.value.isNotEmpty) {
       draggingNodeIds.value = const <String>{};
     }
     mode.value = FlowInteractionMode.idle;
+  }
+
+  /// Aborts the in-flight drag, restoring every dragged node to its position
+  /// at [beginNodeDrag] (nothing is committed). Wired to the gesture's cancel
+  /// callback so a system takeover mid-drag doesn't strand the session.
+  ///
+  /// No-op when no drag session is active — a recognizer can be cancelled
+  /// without ever starting a drag, and that must not disturb another
+  /// in-flight gesture's [mode].
+  void cancelNodeDrag() {
+    if (_dragStartPositions.isEmpty &&
+        mode.value != FlowInteractionMode.draggingNode) {
+      return;
+    }
+    for (final entry in _dragStartPositions.entries) {
+      final n = _nodes[entry.key];
+      if (n == null) continue;
+      if (!n.locked) n.position.value = entry.value;
+      _activeMove.remove(entry.key);
+    }
+    _dragStartPositions.clear();
+    _dragRawOffset = GraphOffset.zero;
+    _clearGuides();
+    if (draggingNodeIds.value.isNotEmpty) {
+      draggingNodeIds.value = const <String>{};
+    }
+    if (mode.value == FlowInteractionMode.draggingNode) {
+      mode.value = FlowInteractionMode.idle;
+    }
   }
 
   GraphPosition _snap(GraphPosition p) {
