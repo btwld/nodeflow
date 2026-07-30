@@ -1,6 +1,8 @@
+import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderCustomPaint;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:node_flow/src/render/edges_painter.dart';
 import 'package:node_flow/node_flow.dart';
@@ -25,6 +27,7 @@ FlowEdge<String> edge(
   String from,
   String to, {
   bool dangling = false,
+  Color? accent,
 }) => FlowEdge<String>(
   id: id,
   sourceNodeId: from,
@@ -32,6 +35,7 @@ FlowEdge<String> edge(
   targetNodeId: to,
   targetPortId: 'in',
   dangling: dangling,
+  accent: accent,
 );
 
 const _outPort = FlowPort(
@@ -217,4 +221,166 @@ void main() {
       expect(base.shouldRepaint(make(FlowEdgeStyle.smoothstep)), isTrue);
     });
   });
+
+  group('edge accent', () {
+    const theme = FlowTheme.dark();
+    const accent = Color(0xFFFF00FF);
+
+    group('resolveEdgeStroke', () {
+      test('falls back to the theme when the edge is plain', () {
+        final stroke = resolveEdgeStroke(edge('e', 'a', 'b'), theme);
+        expect(stroke.color, theme.edge);
+      });
+
+      test('uses the accent, at the ordinary stroke width', () {
+        final plain = resolveEdgeStroke(edge('e', 'a', 'b'), theme);
+        final accented = resolveEdgeStroke(
+          edge('e', 'a', 'b', accent: accent),
+          theme,
+        );
+
+        expect(accented.color, accent);
+        expect(accented.width, plain.width);
+      });
+
+      test('selection wins over the accent', () {
+        final e = edge('e', 'a', 'b', accent: accent);
+        e.selected.value = true;
+
+        final stroke = resolveEdgeStroke(e, theme);
+
+        expect(stroke.color, theme.edgeSelected);
+        expect(
+          stroke.width,
+          greaterThan(resolveEdgeStroke(edge('p', 'a', 'b'), theme).width),
+        );
+      });
+    });
+
+    test('an accented edge is painted in its accent color', () async {
+      final c = _wiredController(accent: accent);
+      addTearDown(c.dispose);
+
+      final pixels = await _paintEdges(c);
+
+      expect(_hasColor(pixels, accent), isTrue);
+      expect(_hasColor(pixels, theme.edgeSelected), isFalse);
+    });
+
+    test('a plain edge paints no accent color', () async {
+      final c = _wiredController();
+      addTearDown(c.dispose);
+
+      expect(_hasColor(await _paintEdges(c), accent), isFalse);
+    });
+
+    test('a selected edge paints as selected even when accented', () async {
+      final c = _wiredController(accent: accent);
+      addTearDown(c.dispose);
+      c.selectEdge('e');
+
+      final pixels = await _paintEdges(c);
+
+      expect(_hasColor(pixels, theme.edgeSelected), isTrue);
+      expect(_hasColor(pixels, accent), isFalse);
+    });
+
+    test('the accent composes with the dashed style unchanged', () async {
+      final c = _wiredController(accent: accent);
+      addTearDown(c.dispose);
+
+      // Two different dash phases: the wire moves, its color does not.
+      for (final phase in <double>[0, 0.5]) {
+        expect(
+          _hasColor(await _paintEdges(c, phase: phase), accent),
+          isTrue,
+          reason: 'accent lost at dash phase $phase',
+        );
+      }
+    });
+
+    testWidgets('changing an accent repaints the edge layer', (tester) async {
+      final c = _wiredController();
+      addTearDown(c.dispose);
+      await pumpCanvas(tester, c);
+
+      final layer = tester.renderObject<RenderCustomPaint>(
+        find
+            .descendant(
+              of: find.byType(EdgesLayer<String, String>),
+              matching: find.byType(CustomPaint),
+            )
+            .first,
+      );
+      expect(
+        layer.debugNeedsPaint,
+        isFalse,
+        reason: 'the layer should be settled before the accent changes',
+      );
+
+      c.setEdgeAccent('e', accent);
+
+      expect(
+        layer.debugNeedsPaint,
+        isTrue,
+        reason: 'the edge layer must repaint when an accent changes',
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+    });
+  });
+}
+
+/// A controller with two ported nodes and the edge `e` between them: the source
+/// anchor lands at (220, 130) and the target at (400, 130), so the wire runs
+/// along y = 130 whatever the edge style.
+FlowController<String, String> _wiredController({Color? accent}) {
+  final c = FlowController<String, String>();
+  c.addNode(node('a', 100, 100, ports: const <FlowPort>[_outPort]));
+  c.addNode(node('b', 400, 100, ports: const <FlowPort>[_inPort]));
+  c.addEdge(edge('e', 'a', 'b', accent: accent));
+  return c;
+}
+
+/// Rasterizes [c]'s edges through [EdgesPainter] and returns the raw RGBA.
+Future<ByteData> _paintEdges(
+  FlowController<String, String> c, {
+  double phase = 0,
+  FlowTheme theme = const FlowTheme.dark(),
+  Size size = const Size(500, 260),
+}) async {
+  final recorder = PictureRecorder();
+  EdgesPainter<String, String>(
+    controller: c,
+    theme: theme,
+    style: FlowEdgeStyle.bezier,
+    dash: AlwaysStoppedAnimation<double>(phase),
+    dragging: const <String>{},
+    includeDragging: false,
+    repaint: c.viewport,
+  ).paint(Canvas(recorder), size);
+
+  final image = await recorder.endRecording().toImage(
+    size.width.toInt(),
+    size.height.toInt(),
+  );
+  final bytes = await image.toByteData();
+  image.dispose();
+  return bytes!;
+}
+
+/// Whether any fully opaque pixel in [pixels] is exactly [color]. Sampling the
+/// whole surface rather than one point keeps the assertion independent of where
+/// the dash pattern happens to fall.
+bool _hasColor(ByteData pixels, Color color) {
+  final want = color.toARGB32() & 0x00FFFFFF;
+  for (var i = 0; i < pixels.lengthInBytes; i += 4) {
+    if (pixels.getUint8(i + 3) < 250) continue;
+    final rgb =
+        (pixels.getUint8(i) << 16) |
+        (pixels.getUint8(i + 1) << 8) |
+        pixels.getUint8(i + 2);
+    if (rgb == want) return true;
+  }
+  return false;
 }

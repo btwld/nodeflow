@@ -5,7 +5,8 @@ import 'package:node_flow/node_flow.dart';
 import '../demo_node.dart';
 
 /// Phase 3-4 demo: animated bezier edges, branch handles with TRUE/FALSE
-/// labels, a dangling edge with its amber badge, and click-to-select edges.
+/// labels, a dangling edge with its amber badge, click-to-select edges, and
+/// per-edge accent colors driven from the toolbar.
 class EdgesPage extends StatefulWidget {
   const EdgesPage({super.key});
 
@@ -18,6 +19,13 @@ class _EdgesPageState extends State<EdgesPage> {
 
   static const _green = Color(0xFF3FB950);
   static const _red = Color(0xFFE5534B);
+  static const _teal = Color(0xFF17A398);
+
+  /// The wires from `input` through the TRUE branch — what an app would light
+  /// up as a traversed path.
+  static const _truePath = <String>['e-input-condition', 'e-true'];
+
+  bool _pathLit = false;
 
   @override
   void initState() {
@@ -144,12 +152,31 @@ class _EdgesPageState extends State<EdgesPage> {
     super.dispose();
   }
 
+  /// Accents are an app-owned highlight channel: they paint over the theme's
+  /// edge color and leave click-to-select free for the user (select a lit wire
+  /// and it still paints selected).
+  void _togglePath() {
+    setState(() => _pathLit = !_pathLit);
+    if (_pathLit) {
+      for (final id in _truePath) {
+        _controller.setEdgeAccent(id, _teal);
+      }
+    } else {
+      _controller.clearEdgeAccents();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('03 · Edges'),
         actions: <Widget>[
+          IconButton(
+            tooltip: _pathLit ? 'Clear edge accents' : 'Accent the TRUE path',
+            onPressed: _togglePath,
+            icon: Icon(_pathLit ? Icons.route : Icons.route_outlined),
+          ),
           IconButton(
             tooltip: 'Fit to view',
             onPressed: () => _controller.fitView(padding: 0.2),
@@ -197,7 +224,8 @@ class _HintCard extends StatelessWidget {
       child: const Text(
         'Animated bezier edges · TRUE/FALSE branch handles · click a wire to '
         'select it, then Delete to remove it · the amber "!" marks a dangling '
-        'edge · the minimap (bottom-right) pans on click/drag',
+        'edge · the route button accents the TRUE path (selection still wins) '
+        '· the minimap (bottom-right) pans on click/drag',
         style: TextStyle(color: Color(0xDDFFFFFF), fontSize: 12),
       ),
     );

@@ -24,7 +24,7 @@ dependencies beyond the Flutter SDK.
   `onConnect` requests (the canvas never mutates your graph).
 - **Edges** — bezier, smoothstep, or straight routing with React-Flow-compatible
   path math, optional animated flowing dash, hit-testing, selection, labels,
-  and dangling-edge badges.
+  per-edge accent colors, and dangling-edge badges.
 - **Minimap** — pannable overview with a viewport indicator.
 - **Zero-dependency theming** — pass a `FlowTheme`, register one as a
   `ThemeExtension`, or use the built-in dark palette.
@@ -37,7 +37,7 @@ callbacks (`onMoveCommitted`, `onDeleted`, `onEdgesDeleted`).
 
 ```yaml
 dependencies:
-  node_flow: ^0.1.0
+  node_flow: ^0.2.0
 ```
 
 ## Usage
@@ -107,6 +107,21 @@ class EditorScreen extends StatelessWidget {
 
 See [`example/`](example/) for a runnable demo covering static graphs, editing,
 edge styles, and drag-to-connect.
+
+## Edge accents
+
+Edges paint in `FlowTheme.edge`. Give one its own color when the app needs to
+say something about it — a traversed path, a failing branch, a data type —
+without borrowing selection, which belongs to the user:
+
+```dart
+controller.setEdgeAccent('a-b', const Color(0xFF17A398));
+controller.clearEdgeAccents(); // back to the theme color
+```
+
+`FlowEdge(accent: ...)` seeds the color up front instead. Selection still wins:
+a selected edge paints in `FlowTheme.edgeSelected` whatever its accent, so the
+two channels never fight.
 
 ## Theming
 

@@ -49,11 +49,13 @@ class EdgesLayer<T, E> extends StatelessWidget {
             final staticRepaint = Listenable.merge(<Listenable>[
               controller.viewport,
               controller.edgeSelectionVersion,
+              controller.edgeAccentVersion,
               dash,
             ]);
             final activeRepaint = Listenable.merge(<Listenable>[
               controller.viewport,
               controller.edgeSelectionVersion,
+              controller.edgeAccentVersion,
               dash,
               ...active,
             ]);
@@ -144,12 +146,12 @@ class EdgesPainter<T, E> extends CustomPainter {
 
     final path = geometry.toPath();
 
-    final selected = edge.selected.value;
+    final stroke = resolveEdgeStroke(edge, theme);
     final paint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
-      ..color = selected ? theme.edgeSelected : theme.edge
-      ..strokeWidth = selected ? _selectedStrokeWidth : _strokeWidth;
+      ..color = stroke.color
+      ..strokeWidth = stroke.width;
 
     paintFlowingDash(canvas, path, paint, phase: phase);
 
@@ -164,6 +166,25 @@ class EdgesPainter<T, E> extends CustomPainter {
       oldDelegate.style != style ||
       oldDelegate.includeDragging != includeDragging ||
       !identical(oldDelegate.dragging, dragging);
+}
+
+/// The stroke an edge is painted with, resolved from its state and [theme].
+///
+/// Precedence is selected > [FlowEdge.accent] > theme default. The accent only
+/// swaps the color: an accented edge keeps the ordinary stroke width, so the
+/// extra weight stays a selection-only cue and both can be told apart when an
+/// accented edge is also selected. Exposed for painter unit tests.
+({Color color, double width}) resolveEdgeStroke<E>(
+  FlowEdge<E> edge,
+  FlowTheme theme,
+) {
+  if (edge.selected.value) {
+    return (
+      color: theme.edgeSelected,
+      width: EdgesPainter._selectedStrokeWidth,
+    );
+  }
+  return (color: edge.accent ?? theme.edge, width: EdgesPainter._strokeWidth);
 }
 
 /// Paints an amber "!" badge at the midpoint of [path]. Exposed for painter

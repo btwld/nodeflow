@@ -1,9 +1,12 @@
+import 'dart:ui' show Color;
+
 import 'package:flutter/foundation.dart';
 
 /// A directed connection between two node ports.
 ///
 /// Edges are pure data in phases 1-2; rendering arrives in phase 3. Only the
-/// [selected] flag is reactive.
+/// [selected] flag is reactive; the other mutable visual state ([accent]) is
+/// repainted through the owning controller's version notifiers.
 final class FlowEdge<E> {
   FlowEdge({
     required this.id,
@@ -15,6 +18,7 @@ final class FlowEdge<E> {
     bool selected = false,
     this.dangling = false,
     this.label,
+    this.accent,
   }) : selected = ValueNotifier(selected);
 
   /// Unique identifier within the owning controller.
@@ -43,6 +47,19 @@ final class FlowEdge<E> {
 
   /// Optional label rendered along the edge (phase 3).
   final String? label;
+
+  /// Optional stroke color override, painted instead of [FlowTheme.edge].
+  ///
+  /// An app-owned highlight channel that is independent of selection — light
+  /// up a traversed path, a validation error, a data type — leaving
+  /// click-to-select as the user's own affordance. [selected] still wins:
+  /// a selected edge paints as selected whatever its accent.
+  ///
+  /// Mutable, and *not* a [ValueNotifier]: the edge layers repaint from
+  /// [FlowController.edgeAccentVersion], exactly as they do for selection, so
+  /// a per-edge notifier would have no listener. Assign through
+  /// [FlowController.setEdgeAccent] so that bump happens.
+  Color? accent;
 
   /// Releases the edge's notifier. Called by the controller.
   void dispose() {

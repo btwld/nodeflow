@@ -1,5 +1,5 @@
 import 'dart:math' as math;
-import 'dart:ui' show Size;
+import 'dart:ui' show Color, Size;
 
 import 'package:flutter/foundation.dart';
 
@@ -70,6 +70,11 @@ class FlowController<T, E> extends ChangeNotifier {
   /// Bumped whenever an edge's selection flag changes; drives the edge layers'
   /// repaint without touching [structureVersion] (which rebuilds nodes).
   final ValueNotifier<int> edgeSelectionVersion = ValueNotifier<int>(0);
+
+  /// Bumped whenever an edge's [FlowEdge.accent] changes; drives the edge
+  /// layers' repaint. Separate from [edgeSelectionVersion] so an app painting
+  /// accents does not look like the user selecting edges.
+  final ValueNotifier<int> edgeAccentVersion = ValueNotifier<int>(0);
 
   /// The in-flight drag-to-connect gesture, or `null`. The preview painter
   /// subscribes to this.
@@ -385,6 +390,35 @@ class FlowController<T, E> extends ChangeNotifier {
     edgeSelectionVersion.value = edgeSelectionVersion.value + 1;
   }
 
+  /// Sets the accent color of the edge with [id], or clears it with `null`.
+  ///
+  /// The accent is an app-owned highlight channel (a traversed path, a failing
+  /// branch) that leaves selection to the user: an accented edge paints in
+  /// [accent], a selected edge still paints selected. Unknown ids are ignored,
+  /// and re-setting the color an edge already has does not notify.
+  void setEdgeAccent(String id, Color? accent) {
+    final edge = _edges[id];
+    if (edge == null || edge.accent == accent) return;
+    edge.accent = accent;
+    _bumpEdgeAccent();
+  }
+
+  /// Clears every edge accent. Leaves the edge selection untouched.
+  void clearEdgeAccents() {
+    var changed = false;
+    for (final e in _edges.values) {
+      if (e.accent != null) {
+        e.accent = null;
+        changed = true;
+      }
+    }
+    if (changed) _bumpEdgeAccent();
+  }
+
+  void _bumpEdgeAccent() {
+    edgeAccentVersion.value = edgeAccentVersion.value + 1;
+  }
+
   // ---------------------------------------------------------------------------
   // Connection dragging
   // ---------------------------------------------------------------------------
@@ -671,6 +705,7 @@ class FlowController<T, E> extends ChangeNotifier {
     marqueeRect.dispose();
     draggingNodeIds.dispose();
     edgeSelectionVersion.dispose();
+    edgeAccentVersion.dispose();
     pendingConnection.dispose();
     activeGuides.dispose();
     super.dispose();

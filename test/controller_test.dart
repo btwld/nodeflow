@@ -324,6 +324,140 @@ void main() {
     });
   });
 
+  group('edge accents', () {
+    const teal = Color(0xFF17A398);
+    const red = Color(0xFFC0392B);
+
+    test('an edge starts with no accent, and the constructor can seed one', () {
+      final c = FlowController<String, String>();
+      addTearDown(c.dispose);
+      c.addNode(node('a', 0, 0));
+      c.addNode(node('b', 100, 0));
+      c.addEdge(edge('e1', 'a', 'b'));
+      c.addEdge(
+        FlowEdge<String>(
+          id: 'e2',
+          sourceNodeId: 'b',
+          sourcePortId: 'out',
+          targetNodeId: 'a',
+          targetPortId: 'in',
+          accent: teal,
+        ),
+      );
+
+      expect(c.getEdge('e1')!.accent, isNull);
+      expect(c.getEdge('e2')!.accent, teal);
+    });
+
+    test('setEdgeAccent sets the color and bumps edgeAccentVersion', () {
+      final c = FlowController<String, String>();
+      addTearDown(c.dispose);
+      c.addNode(node('a', 0, 0));
+      c.addNode(node('b', 100, 0));
+      c.addEdge(edge('e1', 'a', 'b'));
+
+      var notified = 0;
+      c.edgeAccentVersion.addListener(() => notified += 1);
+
+      c.setEdgeAccent('e1', teal);
+
+      expect(c.getEdge('e1')!.accent, teal);
+      expect(notified, 1);
+
+      // A different color notifies again; the same one does not.
+      c.setEdgeAccent('e1', red);
+      expect(notified, 2);
+      c.setEdgeAccent('e1', red);
+      expect(notified, 2);
+    });
+
+    test('setEdgeAccent(null) clears one edge', () {
+      final c = FlowController<String, String>();
+      addTearDown(c.dispose);
+      c.addNode(node('a', 0, 0));
+      c.addNode(node('b', 100, 0));
+      c.addEdge(edge('e1', 'a', 'b'));
+      c.setEdgeAccent('e1', teal);
+
+      var notified = 0;
+      c.edgeAccentVersion.addListener(() => notified += 1);
+
+      c.setEdgeAccent('e1', null);
+
+      expect(c.getEdge('e1')!.accent, isNull);
+      expect(notified, 1);
+      // Already clear: no second notification.
+      c.setEdgeAccent('e1', null);
+      expect(notified, 1);
+    });
+
+    test('unknown ids are ignored', () {
+      final c = FlowController<String, String>();
+      addTearDown(c.dispose);
+      var notified = 0;
+      c.edgeAccentVersion.addListener(() => notified += 1);
+
+      c.setEdgeAccent('ghost', teal);
+
+      expect(notified, 0);
+    });
+
+    test('clearEdgeAccents clears every edge and notifies once', () {
+      final c = FlowController<String, String>();
+      addTearDown(c.dispose);
+      c.addNode(node('a', 0, 0));
+      c.addNode(node('b', 100, 0));
+      c.addEdge(edge('e1', 'a', 'b'));
+      c.addEdge(edge('e2', 'b', 'a'));
+      c.setEdgeAccent('e1', teal);
+      c.setEdgeAccent('e2', red);
+
+      var notified = 0;
+      c.edgeAccentVersion.addListener(() => notified += 1);
+
+      c.clearEdgeAccents();
+
+      expect(c.edges.map((e) => e.accent), everyElement(isNull));
+      expect(notified, 1);
+      // Nothing left to clear: no-op.
+      c.clearEdgeAccents();
+      expect(notified, 1);
+    });
+
+    test('accents and selection are independent channels', () {
+      final c = FlowController<String, String>();
+      addTearDown(c.dispose);
+      c.addNode(node('a', 0, 0));
+      c.addNode(node('b', 100, 0));
+      c.addEdge(edge('e1', 'a', 'b'));
+
+      final selectionAtStart = c.edgeSelectionVersion.value;
+      c.setEdgeAccent('e1', teal);
+      expect(c.getEdge('e1')!.selected.value, isFalse);
+      expect(
+        c.edgeSelectionVersion.value,
+        selectionAtStart,
+        reason: 'painting an accent must not look like a selection change',
+      );
+
+      final accentAtStart = c.edgeAccentVersion.value;
+      c.selectEdge('e1');
+      expect(
+        c.getEdge('e1')!.accent,
+        teal,
+        reason: 'selection kept the accent',
+      );
+      expect(c.edgeAccentVersion.value, accentAtStart);
+
+      // And each clear leaves the other channel alone.
+      c.clearEdgeSelection();
+      expect(c.getEdge('e1')!.accent, teal);
+      c.setEdgeAccent('e1', teal); // no-op
+      c.clearEdgeAccents();
+      expect(c.getEdge('e1')!.selected.value, isFalse);
+    });
+  });
+
   group('structureVersion', () {
     test('bumps on node and edge add/remove', () {
       final c = FlowController<String, String>();
