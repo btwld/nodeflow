@@ -12,13 +12,23 @@ jobs:
       id-token: write # required for OIDC authentication with pub.dev
     steps:
       - uses: actions/checkout@v5
-      # setup-dart exchanges the GitHub OIDC token for a temporary pub.dev
-      # credential; the Flutter SDK below is what actually builds and publishes.
-      - uses: dart-lang/setup-dart@v1
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
       - run: flutter pub get
       - run: flutter test
-      - run: flutter pub publish --force
+      - run: flutter pub publish --dry-run
+
+      # setup-dart exchanges the GitHub OIDC token for a temporary pub.dev
+      # credential and registers it for the whole pub.dev host, so every
+      # later pub.dev request carries it. Provision it only after the reads
+      # above are done: pub.dev now answers credentialed version-listing and
+      # advisory reads with HTTP 403 (dart-lang/pub-dev#9576).
+      - uses: dart-lang/setup-dart@v1
+
+      # The dry run above already resolved and validated this package, so
+      # skipping the repeated client-side pass loses no coverage, and pub.dev
+      # still validates the archive server-side on upload. Drop the flag once
+      # https://github.com/dart-lang/pub-dev/issues/9576 is fixed.
+      - run: flutter pub publish --force --skip-validation
