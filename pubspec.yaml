@@ -3,8 +3,8 @@ description: >-
   React Flow-style node editor canvas for Flutter: pan/zoom viewport, draggable
   nodes, drag-to-connect edges, marquee selection, snap guides, and a minimap.
 version: 0.2.1
-repository: https://github.com/kshdotdev/nodeflow
-issue_tracker: https://github.com/kshdotdev/nodeflow/issues
+repository: https://github.com/btwld/nodeflow
+issue_tracker: https://github.com/btwld/nodeflow/issues
 topics:
   - node-editor
   - flow
