@@ -63,9 +63,7 @@ class FlowController<T, E> extends ChangeNotifier {
       );
     }
 
-    return value.copyWith(
-      zoom: value.zoom.clamp(minZoom, maxZoom).toDouble(),
-    );
+    return value.copyWith(zoom: value.zoom.clamp(minZoom, maxZoom).toDouble());
   }
 
   /// Minimum zoom factor.
