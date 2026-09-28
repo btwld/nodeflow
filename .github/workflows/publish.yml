@@ -8,7 +8,9 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
+      contents: read
       id-token: write # required for OIDC authentication with pub.dev
     steps:
       - uses: actions/checkout@v5
@@ -23,7 +25,7 @@ jobs:
         run: |
           package_version="$(awk '/^version:/ { print $2; exit }' pubspec.yaml)"
           test "v${package_version}" = "${GITHUB_REF_NAME}"
-      - run: dart format --output=none --set-exit-if-changed lib test example/lib
+      - run: dart format --output=none --set-exit-if-changed lib test example/lib example/test example/integration_test example/test_driver
       - run: flutter analyze
       - run: flutter analyze
         working-directory: example
