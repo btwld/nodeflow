@@ -127,5 +127,19 @@ void main() {
       expect(_covers(rects, const Offset(100, 0)), isTrue);
       expect(_covers(rects, const Offset(100, 80)), isFalse);
     });
+
+    test('cover same-side bezier overshoot beyond the endpoint chord', () {
+      final geo = FlowEdgeStyle.bezier.geometry(
+        const Offset(0, 0),
+        PortSide.right,
+        const Offset(400, 0),
+        PortSide.right,
+      );
+      final rects = geo.hitTestRects(9);
+
+      // The default control points are (200, 0) and (600, 0). At t = 0.8,
+      // the cubic is at x = 454.4, beyond the endpoint at x = 400.
+      expect(_covers(rects, const Offset(454.4, 0)), isTrue);
+    });
   });
 }
