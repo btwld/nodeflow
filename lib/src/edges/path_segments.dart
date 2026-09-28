@@ -277,24 +277,14 @@ class CubicSegment extends PathSegment {
     final chordUnitX = chordDx / chordLength;
     final chordUnitY = chordDy / chordLength;
     double alongChord(Offset point) =>
-        (point.dx - start.dx) * chordUnitX +
-        (point.dy - start.dy) * chordUnitY;
+        (point.dx - start.dx) * chordUnitX + (point.dy - start.dy) * chordUnitY;
     final cp1Along = alongChord(controlPoint1);
     final cp2Along = alongChord(controlPoint2);
     final minAlong = math.min(0.0, math.min(cp1Along, cp2Along));
-    final maxAlong = math.max(
-      chordLength,
-      math.max(cp1Along, cp2Along),
-    );
-    final longitudinalOvershoot = math.max(
-      -minAlong,
-      maxAlong - chordLength,
-    );
+    final maxAlong = math.max(chordLength, math.max(cp1Along, cp2Along));
+    final longitudinalOvershoot = math.max(-minAlong, maxAlong - chordLength);
     final overshootBasedCount = longitudinalOvershoot > 0
-        ? math.max(
-            2,
-            (longitudinalOvershoot / (maxPerpExpansion / 2)).ceil(),
-          )
+        ? math.max(2, (longitudinalOvershoot / (maxPerpExpansion / 2)).ceil())
         : 1;
     final curvatureBasedCount = math.max(1, (curvature * 3).ceil());
 
