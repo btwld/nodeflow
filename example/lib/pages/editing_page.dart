@@ -3,8 +3,7 @@ import 'package:node_flow/node_flow.dart';
 
 import '../demo_node.dart';
 
-/// Phase 2 demo: six nodes with drag (snap on release), click / shift-click
-/// selection, shift-drag marquee, and delete.
+/// Six editable nodes with selection, snapping, status updates, and navigation.
 class EditingPage extends StatefulWidget {
   const EditingPage({super.key});
 
@@ -33,7 +32,7 @@ class _EditingPageState extends State<EditingPage> {
         FlowNode<DemoNode>(
           id: title.toLowerCase(),
           type: 'demo',
-          data: DemoNode(title, color),
+          data: DemoNode(title, color, status: DemoStatus.idle),
           position: GraphPosition(offset),
         ),
       );
@@ -52,6 +51,25 @@ class _EditingPageState extends State<EditingPage> {
       appBar: AppBar(
         title: const Text('02 · Editing'),
         actions: <Widget>[
+          IconButton(
+            tooltip: 'Focus Alpha',
+            onPressed: () => _controller.centerOnNode('alpha'),
+            icon: const Icon(Icons.center_focus_strong),
+          ),
+          IconButton(
+            tooltip: 'Toggle Alpha status',
+            onPressed: () => _controller.updateNodeData(
+              'alpha',
+              (data) => DemoNode(
+                data.title,
+                data.color,
+                status: data.status == DemoStatus.running
+                    ? DemoStatus.idle
+                    : DemoStatus.running,
+              ),
+            ),
+            icon: const Icon(Icons.sync),
+          ),
           IconButton(
             tooltip: 'Select all',
             onPressed: _controller.selectAll,

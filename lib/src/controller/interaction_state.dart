@@ -13,7 +13,7 @@ enum FlowInteractionMode {
   /// One or more nodes are being dragged.
   draggingNode,
 
-  /// A connection is being drawn (phase 3).
+  /// A connection is being drawn.
   draggingConnection,
 
   /// A marquee (rubber-band) selection is in progress.

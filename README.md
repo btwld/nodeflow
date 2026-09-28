@@ -130,6 +130,38 @@ class _EditorScreenState extends State<EditorScreen> {
 See [`example/`](example/) for a runnable demo covering static graphs, editing,
 edge styles, and drag-to-connect.
 
+## Node data and navigation
+
+Application status belongs in your node data. For example, with a
+`FlowController<JobData, void>` whose immutable `JobData` provides `copyWith`:
+
+```dart
+controller.updateNodeData(
+  'job-1',
+  (data) => data.copyWith(status: JobStatus.running),
+);
+```
+
+Render that status with your own badge, progress indicator, or buttons in
+`nodeBuilder`. The update rebuilds the node while preserving its position,
+selection, ports, lock state, and connections. It returns `false` for an unknown
+node ID. The updater must return a new value without mutating the controller
+or previous data. As with `replaceNode`, the old node's notifiers are disposed;
+release application-owned resources separately when necessary.
+
+Once the canvas is laid out, navigate to a node without measuring the canvas:
+
+```dart
+controller.centerOnNode('job-1');
+```
+
+This immediately centers the node at the current zoom. Headless callers can
+still pass a size: `controller.centerOnNode('job-1', const Size(800, 600))`.
+Before a canvas size is known, or if the node is missing, centering does nothing.
+`fitView()` fits the whole graph; `zoomTo()` changes the zoom. Animated navigation
+is not currently provided. Try **Focus Alpha** and **Toggle Alpha status** on the
+[editing demo](example/lib/pages/editing_page.dart) for a runnable example.
+
 ## Edge accents
 
 Edges paint in `FlowTheme.edge`. Give one its own color when the app needs to

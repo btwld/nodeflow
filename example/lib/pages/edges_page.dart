@@ -4,7 +4,7 @@ import 'package:node_flow/node_flow.dart';
 
 import '../demo_node.dart';
 
-/// Phase 3-4 demo: animated bezier edges, branch handles with TRUE/FALSE
+/// Animated bezier edges, branch handles with TRUE/FALSE
 /// labels, a dangling edge with its amber badge, click-to-select edges, and
 /// per-edge accent colors driven from the toolbar.
 class EdgesPage extends StatefulWidget {

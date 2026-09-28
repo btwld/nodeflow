@@ -85,6 +85,9 @@ void main() {
     tester,
   ) async {
     final controller = await openRoute(tester, 'editing');
+    // This scenario checks grid snapping. Alignment guides intentionally win
+    // over the grid and depend on the demo cards' measured dimensions.
+    controller.snapGuidesEnabled = false;
     final before = tester.getTopLeft(nodeCard('alpha'));
     final drag = await tester.startGesture(
       tester.getCenter(nodeCard('alpha')),
@@ -131,6 +134,46 @@ void main() {
     expect(find.byKey(const ValueKey<String>('node-alpha')), findsNothing);
     expect(find.byKey(const ValueKey<String>('node-bravo')), findsNothing);
     expect(find.byKey(const ValueKey<String>('node-charlie')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('editing controls update status and focus without losing state', (
+    tester,
+  ) async {
+    final controller = await openRoute(tester, 'editing');
+    await tester.tap(nodeCard('alpha'));
+    await tester.pump();
+    final position = controller.getNode('alpha')!.position.value;
+    final zoom = controller.viewport.value.zoom;
+
+    await tester.tap(find.byTooltip('Toggle Alpha status'));
+    await tester.pump();
+    expect(controller.getNode('alpha')!.data.status, DemoStatus.running);
+    expect(
+      find.descendant(of: nodeCard('alpha'), matching: find.text('Running')),
+      findsOneWidget,
+    );
+    expect(controller.selection.value, {'alpha'});
+    expect(controller.getNode('alpha')!.position.value, position);
+
+    await tester.tap(find.byTooltip('Focus Alpha'));
+    await tester.pump();
+    final canvas = find.byType(NodeFlow<DemoNode, Object?>);
+    expect(
+      (tester.getCenter(nodeCard('alpha')) - tester.getCenter(canvas)).distance,
+      lessThan(1),
+    );
+    expect(controller.viewport.value.zoom, zoom);
+
+    await tester.tap(find.byTooltip('Toggle Alpha status'));
+    await tester.pump();
+    expect(controller.getNode('alpha')!.data.status, DemoStatus.idle);
+    await tester.tap(find.byTooltip('Delete selection'));
+    await tester.pump();
+    await tester.tap(find.byTooltip('Focus Alpha'));
+    await tester.tap(find.byTooltip('Toggle Alpha status'));
+    await tester.pump();
+    expect(nodeCard('alpha'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 

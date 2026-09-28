@@ -202,6 +202,31 @@ class FlowController<T, E> extends ChangeNotifier {
     return true;
   }
 
+  /// Updates application data while preserving the node's geometry, ports,
+  /// selection, stacking order, lock state, and incident edges.
+  ///
+  /// Returns `false` without calling [update] if [id] does not exist. The
+  /// synchronous updater must return a new data value without mutating the
+  /// controller or the previous payload. Errors propagate before replacement.
+  ///
+  /// Uses [replaceNode], so the old node's notifiers are disposed. Resources
+  /// held by the old application data remain the caller's responsibility.
+  bool updateNodeData(String id, T Function(T current) update) {
+    final node = _nodes[id];
+    if (node == null) return false;
+    final data = update(node.data);
+    return replaceNode(
+      FlowNode<T>(
+        id: node.id,
+        type: node.type,
+        data: data,
+        position: node.position.value,
+        ports: node.ports,
+        locked: node.locked,
+      ),
+    );
+  }
+
   /// Removes the node with [id] and every edge incident to it.
   void removeNode(String id) {
     final node = _nodes.remove(id);
@@ -846,15 +871,19 @@ class FlowController<T, E> extends ChangeNotifier {
   }
 
   /// Centers the viewport on the node with [id] without changing zoom.
-  void centerOnNode(String id, Size screenSize) {
+  ///
+  /// Uses the mounted canvas's last known size when [screenSize] is omitted.
+  /// No-op when the node or a nonempty canvas size is unavailable.
+  void centerOnNode(String id, [Size? screenSize]) {
+    final size = screenSize ?? lastKnownScreenSize;
     final node = _nodes[id];
-    if (node == null || screenSize.isEmpty) return;
+    if (node == null || size == null || size.isEmpty) return;
     final center = node.bounds.center;
     final zoom = viewport.value.zoom;
     setViewport(
       FlowViewport(
-        x: screenSize.width / 2 - center.dx * zoom,
-        y: screenSize.height / 2 - center.dy * zoom,
+        x: size.width / 2 - center.dx * zoom,
+        y: size.height / 2 - center.dy * zoom,
         zoom: zoom,
       ),
     );

@@ -3,8 +3,10 @@ import 'package:node_flow/node_flow.dart';
 
 import '../demo_node.dart';
 
-/// Phase 5 demo: drag from a port handle to another to create edges. The app
-/// owns the model: [onConnect] validates the request (rejecting a second edge
+/// Drag-to-connect with application-owned validation.
+///
+/// The app owns the model: [NodeFlow.onConnect] validates the request
+/// (rejecting a second edge
 /// into an already-connected input) and adds the edge itself. Identical
 /// connections are deduped by the canvas and never reach the callback.
 class ConnectPage extends StatefulWidget {

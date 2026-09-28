@@ -4,8 +4,8 @@ import 'package:flutter/foundation.dart';
 
 /// A directed connection between two node ports.
 ///
-/// Edges are pure data in phases 1-2; rendering arrives in phase 3. Only the
-/// [selected] flag is reactive; the other mutable visual state ([accent]) is
+/// Only the [selected] flag is reactive; the other mutable visual state
+/// ([accent]) is
 /// repainted through the owning controller's version notifiers.
 final class FlowEdge<E> {
   FlowEdge({
