@@ -95,8 +95,8 @@ jobs:
             sleep 1
           done
           curl --fail --show-error --silent http://127.0.0.1:4444/status > build/integration_artifacts/chromedriver-status.json
-          timeout 8m flutter drive --driver=test_driver/integration_test.dart --target=integration_test/app_smoke_test.dart -d web-server --headless --browser-dimension=1600x1024@1 2>&1 | tee build/integration_artifacts/smoke.log
-          timeout 10m flutter drive --driver=test_driver/integration_test.dart --target=integration_test/workflow_test.dart -d web-server --headless --browser-dimension=1600x1024@1 2>&1 | tee build/integration_artifacts/workflow.log
+          timeout 8m flutter drive --driver=test_driver/integration_test.dart --target=integration_test/app_smoke_test.dart -d web-server --chrome-binary="$CHROME_EXECUTABLE" --headless --browser-dimension=1600x1024@1 2>&1 | tee build/integration_artifacts/smoke.log
+          timeout 10m flutter drive --driver=test_driver/integration_test.dart --target=integration_test/workflow_test.dart -d web-server --chrome-binary="$CHROME_EXECUTABLE" --headless --browser-dimension=1600x1024@1 2>&1 | tee build/integration_artifacts/workflow.log
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
@@ -140,7 +140,7 @@ jobs:
             sleep 1
           done
           curl --fail --show-error --silent http://127.0.0.1:4444/status > build/integration_artifacts/chromedriver-status.json
-          timeout 10m flutter drive --driver=test_driver/lifecycle_driver.dart --target=integration_test/lifecycle_test.dart -d web-server --headless --browser-dimension=1600x1024@1 2>&1 | tee build/integration_artifacts/lifecycle.log
+          timeout 10m flutter drive --driver=test_driver/lifecycle_driver.dart --target=integration_test/lifecycle_test.dart -d web-server --chrome-binary="$CHROME_EXECUTABLE" --headless --browser-dimension=1600x1024@1 2>&1 | tee build/integration_artifacts/lifecycle.log
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
