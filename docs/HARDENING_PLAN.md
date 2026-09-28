@@ -31,7 +31,9 @@ The design target is a set of deep modules with clear ownership:
 5. Prefer public-seam tests through FlowController and mounted NodeFlow.
 6. Treat controllers passed to NodeFlow as borrowed resources. NodeFlow may
    subscribe and unsubscribe, but must not dispose them.
-7. Keep app callbacks outside controller invariants. Internal cleanup must
+7. Use one mounted NodeFlow per controller. Canvas-local screen-size and snap
+   settings currently live on the controller and are not multi-canvas state.
+8. Keep app callbacks outside controller invariants. Internal cleanup must
    complete even if an app callback throws.
 
 ## Phase 1 — lifecycle correctness
@@ -53,7 +55,8 @@ Status: implemented in the hardening branch.
 Every interaction must have an end state for success, cancellation, and error.
 
 - Pointer cancellation terminates marquee interaction.
-- Connection cleanup runs in `finally` when `onConnect` throws.
+- Connection cleanup runs when a port gesture is cancelled and in `finally`
+  when `onConnect` throws.
 - Node-drag cleanup runs in `finally` when `onMoveCommitted` throws.
 - Cleanup operations remain safe when called after an already-ended gesture.
 
@@ -97,8 +100,9 @@ The following invariants hold at controller entry points:
 - `minZoom` is finite and greater than zero.
 - `maxZoom` is finite and greater than or equal to `minZoom`.
 - viewport pan coordinates are finite.
-- viewport zoom is finite and greater than zero.
-- a valid zoom outside the supported range is clamped.
+- viewport zoom is finite.
+- a finite zoom outside the supported range, including zero or a negative
+  value, is normalized to the supported range for 0.2.x compatibility.
 - `fitView` cannot construct an invalid clamp range when its requested
   maximum is below the controller minimum.
 
