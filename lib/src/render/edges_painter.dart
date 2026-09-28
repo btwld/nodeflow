@@ -37,27 +37,33 @@ class EdgesLayer<T, E> extends StatelessWidget {
         return ValueListenableBuilder<Set<String>>(
           valueListenable: controller.draggingNodeIds,
           builder: (context, dragging, _) {
-            final active = <Listenable>[];
-            for (final id in dragging) {
-              final n = controller.getNode(id);
-              if (n != null) {
-                active
-                  ..add(n.position)
-                  ..add(n.measuredSize);
+            final allGeometry = <Listenable>[];
+            final staticGeometry = <Listenable>[];
+            for (final node in controller.nodes) {
+              allGeometry
+                ..add(node.position)
+                ..add(node.measuredSize);
+              if (!dragging.contains(node.id)) {
+                staticGeometry
+                  ..add(node.position)
+                  ..add(node.measuredSize);
               }
             }
             final staticRepaint = Listenable.merge(<Listenable>[
+              controller.structureVersion,
               controller.viewport,
               controller.edgeSelectionVersion,
               controller.edgeAccentVersion,
               dash,
+              ...staticGeometry,
             ]);
             final activeRepaint = Listenable.merge(<Listenable>[
+              controller.structureVersion,
               controller.viewport,
               controller.edgeSelectionVersion,
               controller.edgeAccentVersion,
               dash,
-              ...active,
+              ...allGeometry,
             ]);
             return Stack(
               fit: StackFit.expand,
