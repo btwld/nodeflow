@@ -218,6 +218,30 @@ controller.clearEdgeAccents(); // back to the theme color
 a selected edge paints in `FlowTheme.edgeSelected` whatever its accent, so the
 two channels never fight.
 
+## Node actions
+
+Use optional `onNodeTap`, `onNodeDoubleTap`, and `onNodeContextMenu` callbacks to
+open app-owned details, menus, or routes. Primary tap updates selection before
+calling `onNodeTap`; when a double-tap callback is present, Flutter delays a
+single tap while it checks for a second tap. A double tap selects the node once
+and calls only `onNodeDoubleTap`. Secondary click and touch long press call
+`onNodeContextMenu` with global logical coordinates; they do not change
+selection. Interactive child widgets retain their own gestures.
+
+```dart
+NodeFlow<String, void>(
+  controller: controller,
+  nodeBuilder: (context, node) => Text(node.data),
+  onNodeDoubleTap: (node) => showDialog<void>(
+    context: context,
+    builder: (context) => AlertDialog(title: Text(node.data)),
+  ),
+);
+```
+
+The [editing demo](example/lib/pages/editing_page.dart) opens a details dialog
+from double-click and right-click. No built-in panel or router is required.
+
 ## Theming
 
 Resolution order: explicit widget parameter → `ThemeExtension` → dark defaults.

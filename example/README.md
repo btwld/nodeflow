@@ -4,7 +4,7 @@ A runnable demo of the [node_flow](https://pub.dev/packages/node_flow) canvas
 with four pages:
 
 - **01 · Static camera** — a three-node graph with pan / zoom / fit.
-- **02 · Editing** — node dragging, selection, marquee, snap guides, focus, and status updates.
+- **02 · Editing** — node dragging, selection, marquee, snap guides, focus, status, and detail actions.
 - **03 · Edges** — animated bezier, branches, dangling badges.
 - **04 · Connect** — ports, drag-to-connect, app-side validation, dedupe.
 
@@ -20,8 +20,9 @@ On **02 · Editing**, use **Focus Alpha** to center that node without changing
 zoom. **Toggle Alpha status** switches its card between Idle and Running through
 `updateNodeData`. This is sample application data, not an execution engine.
 Selection and node position survive the update. Both controls safely do nothing
-if Alpha has been deleted. Node widgets remain app-defined; buttons and detail
-panels can use ordinary Flutter widgets and navigation.
+if Alpha has been deleted. Double-click or right-click a node to open an ordinary Flutter details dialog.
+The canvas supplies the node callback; the application owns the dialog. Node
+widgets remain app-defined, so embedded buttons keep their own gestures.
 
 The Connect demo uses `isValidConnection` to keep occupied inputs from being
 highlighted or accepted. Its application callback checks again before adding

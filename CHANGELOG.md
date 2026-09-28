@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Added node tap, double-tap, and context-menu callbacks for app-owned detail
+  views while retaining selection and child-widget gesture behavior.
+- The Editing demo opens a Flutter details dialog from node double-click or
+  right-click.
+
 - Added optional `NodeFlow.isValidConnection` for normalized application
   rules during connection hover and drop; rejected ports are not highlighted.
 - The Connect demo uses that predicate to reject occupied inputs before drop.

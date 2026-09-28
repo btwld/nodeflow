@@ -1,5 +1,4 @@
-import 'dart:ui' show PointerDeviceKind;
-
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -120,9 +119,11 @@ void main() {
     expect(tester.getTopLeft(nodeCard('alpha')), isNot(before));
 
     await tester.tap(nodeCard('alpha'));
+    await tester.pump(const Duration(milliseconds: 400));
     await tester.sendKeyDownEvent(LogicalKeyboardKey.shift);
     try {
       await tester.tap(nodeCard('bravo'));
+      await tester.pump(const Duration(milliseconds: 400));
     } finally {
       await tester.sendKeyUpEvent(LogicalKeyboardKey.shift);
     }
@@ -142,7 +143,7 @@ void main() {
   ) async {
     final controller = await openRoute(tester, 'editing');
     await tester.tap(nodeCard('alpha'));
-    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
     final position = controller.getNode('alpha')!.position.value;
     final zoom = controller.viewport.value.zoom;
 
@@ -174,6 +175,36 @@ void main() {
     await tester.tap(find.byTooltip('Toggle Alpha status'));
     await tester.pump();
     expect(nodeCard('alpha'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('double tap and secondary click open node details', (
+    tester,
+  ) async {
+    final controller = await openRoute(tester, 'editing');
+    final alpha = tester.getCenter(nodeCard('alpha'));
+    await tester.tapAt(alpha);
+    await tester.pump(const Duration(milliseconds: 90));
+    await tester.tapAt(alpha);
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('Node ID: alpha'), findsOneWidget);
+    expect(controller.selection.value, {'alpha'});
+    await tester.tap(find.text('Close'));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Node ID: alpha'), findsNothing);
+
+    final bravo = tester.getCenter(nodeCard('bravo'));
+    final secondary = await tester.startGesture(
+      bravo,
+      kind: PointerDeviceKind.mouse,
+      buttons: kSecondaryMouseButton,
+    );
+    await secondary.up();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('Node ID: bravo'), findsOneWidget);
+    expect(controller.selection.value, {'alpha'});
+    await tester.tap(find.text('Close'));
+    await tester.pump(const Duration(milliseconds: 300));
     expect(tester.takeException(), isNull);
   });
 
