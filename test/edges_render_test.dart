@@ -112,8 +112,7 @@ void main() {
     );
     expect(layer.debugNeedsPaint, isFalse);
 
-    c.getNode('a')!.position.value =
-        const GraphPosition(Offset(140, 120));
+    c.getNode('a')!.position.value = const GraphPosition(Offset(140, 120));
 
     expect(layer.debugNeedsPaint, isTrue);
   });
