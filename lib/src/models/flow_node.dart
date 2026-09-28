@@ -39,7 +39,7 @@ final class FlowNode<T> {
   /// Application payload.
   final T data;
 
-  /// Connection points (rendered in phase 3).
+  /// The node's input and output connection points.
   final List<FlowPort> ports;
 
   /// Top-left position in graph coordinates.

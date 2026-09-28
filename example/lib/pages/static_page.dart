@@ -3,7 +3,7 @@ import 'package:node_flow/node_flow.dart';
 
 import '../demo_node.dart';
 
-/// Phase 1 demo: three static nodes with camera controls (pan / zoom / fit).
+/// A three-node graph with camera controls for pan, zoom, and fit.
 class StaticPage extends StatefulWidget {
   const StaticPage({super.key});
 

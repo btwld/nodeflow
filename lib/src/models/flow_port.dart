@@ -6,8 +6,7 @@ enum PortSide { left, right, top, bottom }
 /// Whether a port receives connections ([input]) or emits them ([output]).
 enum PortKind { input, output }
 
-/// How a port is drawn. Phase 3 renders these; the model exists now so that
-/// [FlowNode] can stay `final`.
+/// The built-in visual style of a port handle.
 enum PortVisual {
   /// A simple filled circle.
   circle,
@@ -16,10 +15,7 @@ enum PortVisual {
   branch,
 }
 
-/// A connection point on a [FlowNode].
-///
-/// Ports are pure data in phases 1-2; rendering and connection interaction
-/// arrive in phase 3. Modeling them now keeps [FlowNode] immutable in shape.
+/// A connection point on a node.
 final class FlowPort {
   const FlowPort({
     required this.id,
@@ -39,12 +35,12 @@ final class FlowPort {
   /// Input or output.
   final PortKind kind;
 
-  /// How the port should be drawn (phase 3).
+  /// The built-in visual style of the handle.
   final PortVisual visual;
 
-  /// Optional human-readable label.
+  /// Optional label, rendered by the built-in branch handle.
   final String? label;
 
-  /// Optional accent color override (phase 3).
+  /// Optional handle accent color override.
   final Color? accent;
 }

@@ -1,4 +1,4 @@
-/// NodeFlow — a React-Flow-equivalent node canvas for Flutter.
+/// NodeFlow — a React-Flow-style node canvas for Flutter.
 ///
 /// The canvas is domain-agnostic: node visuals come from the app through a
 /// `nodeBuilder`, node data is generic, and serialization stays with the

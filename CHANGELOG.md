@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- The editing demo now demonstrates focusing a node and updating an
+  application-owned status; API and example docs describe current behavior.
+
+- Added `FlowController.updateNodeData` for typed application-data updates
+  while preserving node geometry, selection, ports, lock state, and connections.
+- `centerOnNode` now accepts an omitted canvas size, using the last size
+  reported by a mounted canvas. Existing explicit-size calls are unchanged.
+
 - Hardened `NodeFlow` controller replacement: listener ownership now follows
   the active controller, transform state re-syncs on replacement, and borrowed
   controllers remain usable after the canvas is disposed.

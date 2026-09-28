@@ -23,7 +23,7 @@ import 'snap_guides_painter.dart';
 import 'node_container.dart';
 import 'unbounded.dart';
 
-/// A React-Flow-equivalent node canvas.
+/// A customizable node canvas inspired by React Flow.
 ///
 /// Node visuals are entirely app-defined through [nodeBuilder]; the canvas owns
 /// camera (pan/zoom), the dotted grid, node positioning, selection, drag,

@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:node_flow/node_flow.dart';
 
-/// Payload for the demo nodes: a title and an accent color.
+/// Application-defined status used by the editing demo.
+enum DemoStatus { idle, running }
+
+/// Payload for the demo nodes: a title, accent color, and optional status.
 class DemoNode {
-  const DemoNode(this.title, this.color);
+  const DemoNode(this.title, this.color, {this.status});
 
   final String title;
   final Color color;
+  final DemoStatus? status;
 }
 
 /// A 256-wide placeholder card whose height is intrinsic. Reflects selection
@@ -53,6 +57,13 @@ class DemoNodeCard extends StatelessWidget {
                   fontSize: 16,
                 ),
               ),
+              if (node.data.status case final status?) ...[
+                const SizedBox(height: 8),
+                Text(
+                  status == DemoStatus.running ? 'Running' : 'Idle',
+                  style: const TextStyle(color: Colors.white, fontSize: 12),
+                ),
+              ],
               const SizedBox(height: 8),
               Text(
                 'id: ${node.id}${node.locked ? '  (locked)' : ''}',
