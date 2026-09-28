@@ -39,7 +39,7 @@ callbacks (`onMoveCommitted`, `onDeleted`, `onEdgesDeleted`).
 
 ```yaml
 dependencies:
-  node_flow: ^0.2.1
+  node_flow: ^0.2.2
 ```
 
 ## Usage
