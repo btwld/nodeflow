@@ -75,6 +75,36 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('swapping controllers aborts transient interaction state', (
+    tester,
+  ) async {
+    final first = _controller(const FlowViewport());
+    final second = _controller(const FlowViewport());
+    addTearDown(first.dispose);
+    addTearDown(second.dispose);
+
+    await tester.pumpWidget(_canvas(first));
+    await tester.pump();
+
+    first.beginConnection(
+      'node',
+      const FlowPort(
+        id: 'out',
+        side: PortSide.right,
+        kind: PortKind.output,
+      ),
+      GraphPosition.zero,
+    );
+    expect(first.mode.value, FlowInteractionMode.draggingConnection);
+    expect(first.pendingConnection.value, isNotNull);
+
+    await tester.pumpWidget(_canvas(second));
+    await tester.pump();
+
+    expect(first.mode.value, FlowInteractionMode.idle);
+    expect(first.pendingConnection.value, isNull);
+  });
+
   testWidgets('controllers remain usable after canvas disposal', (
     tester,
   ) async {
