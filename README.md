@@ -22,7 +22,8 @@ dependencies beyond the Flutter SDK.
   screen distance (`FlowController.snapGuideThreshold`, 8px) at every zoom.
 - **Ports & connections** — input/output ports on any node side, drag-to-connect
   with compatible-port detection, a live connection preview, and normalized
-  `onConnect` requests (the canvas never mutates your graph).
+  `onConnect` requests and optional application validation during hover/drop
+  (the canvas never mutates your graph).
 - **Edges** — bezier, smoothstep, or straight routing with React-Flow-compatible
   path math, optional animated flowing dash, hit-testing, selection,
   per-edge accent colors, and warning badges on resolvable marked edges.
@@ -129,6 +130,46 @@ class _EditorScreenState extends State<EditorScreen> {
 
 See [`example/`](example/) for a runnable demo covering static graphs, editing,
 edge styles, and drag-to-connect.
+
+## Connection validation
+
+Pass an optional `isValidConnection` predicate to reject a proposed edge while
+it is being dragged. It receives the same output-to-input-normalized request as
+`onConnect`. The canvas checks port direction, self-connections, and duplicate
+port pairs first; invalid targets are not highlighted and never reach
+`onConnect`. It checks again at drop time in case application state changed.
+
+```dart
+NodeFlow<String, void>(
+  controller: controller,
+  nodeBuilder: (context, node) => Text(node.data),
+  isValidConnection: (request) => !controller.edges.any(
+    (edge) => edge.targetNodeId == request.targetNodeId &&
+        edge.targetPortId == request.targetPortId,
+  ),
+  onConnect: (request) {
+    // Recheck application rules before writing if state can change here.
+    if (controller.edges.any((edge) =>
+        edge.targetNodeId == request.targetNodeId &&
+        edge.targetPortId == request.targetPortId)) return false;
+    controller.addEdge(FlowEdge<void>(
+      id: '${request.sourceNodeId}:${request.sourcePortId}-'
+          '${request.targetNodeId}:${request.targetPortId}',
+      sourceNodeId: request.sourceNodeId,
+      sourcePortId: request.sourcePortId,
+      targetNodeId: request.targetNodeId,
+      targetPortId: request.targetPortId,
+    ));
+    return true;
+  },
+);
+```
+
+This single-input rule is just an example. Your application decides type,
+cardinality, and cycle policy. The predicate should be synchronous and must not
+mutate the graph. Direct `controller.addEdge` calls are unaffected. The
+`onConnect` boolean return is retained for 0.2.x compatibility and does not
+control whether the canvas adds an edge; your callback owns that operation.
 
 ## Node data and navigation
 

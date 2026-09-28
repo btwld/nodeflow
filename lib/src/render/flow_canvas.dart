@@ -41,6 +41,7 @@ class NodeFlow<T, E> extends StatefulWidget {
     this.minimapMargin = const EdgeInsets.only(right: 12, bottom: 12),
     this.snapGuides = true,
     this.onConnect,
+    this.isValidConnection,
     this.onPortHover,
   });
 
@@ -91,6 +92,16 @@ class NodeFlow<T, E> extends StatefulWidget {
   /// currently consumed by the canvas. Identical connections are deduped and
   /// never reach this callback.
   final bool Function(FlowConnectionRequest request)? onConnect;
+
+  /// Whether a proposed connection is eligible during dragging and dropping.
+  ///
+  /// The request is normalized from output to input. The canvas checks port
+  /// direction, node identity, and duplicate pairs first. Invalid candidates
+  /// are not highlighted and do not reach [onConnect]. The predicate must be
+  /// synchronous and should not mutate the graph; the canvas checks it again
+  /// at drop time. Omit it to allow every otherwise compatible connection.
+  /// Programmatic calls to [FlowController.addEdge] do not use this predicate.
+  final bool Function(FlowConnectionRequest request)? isValidConnection;
 
   /// Called when a port handle is hovered (with the anchor) or unhovered (with
   /// `null`), so the app can render hover cards.
@@ -394,14 +405,19 @@ class _NodeFlowState<T, E> extends State<NodeFlow<T, E>>
   void _onPortDragUpdate(Offset globalPosition) {
     final pending = _controller.pendingConnection.value;
     if (pending == null) return;
-    final local = _globalToLocal(globalPosition);
-    final graph = _controller.screenToGraph(ScreenPosition(local));
-    final hit = _hitTestPort(local, pending.sourceNodeId, pending.sourcePort);
-    _controller.updateConnection(
-      graph,
-      targetNodeId: hit?.$1,
-      targetPort: hit?.$2,
-    );
+    try {
+      final local = _globalToLocal(globalPosition);
+      final graph = _controller.screenToGraph(ScreenPosition(local));
+      final hit = _hitTestPort(local, pending.sourceNodeId, pending.sourcePort);
+      _controller.updateConnection(
+        graph,
+        targetNodeId: hit?.$1,
+        targetPort: hit?.$2,
+      );
+    } catch (_) {
+      _controller.endConnection();
+      rethrow;
+    }
   }
 
   void _onPortDragEnd(Offset globalPosition) {
@@ -420,13 +436,7 @@ class _NodeFlowState<T, E> extends State<NodeFlow<T, E>>
           hit.$1,
           hit.$2,
         );
-        if (request != null &&
-            !_controller.connectionExists(
-              request.sourceNodeId,
-              request.sourcePortId,
-              request.targetNodeId,
-              request.targetPortId,
-            )) {
+        if (request != null) {
           // The canvas never adds the edge: the app owns the model and adds it
           // through the controller when it accepts the request.
           widget.onConnect?.call(request);
@@ -470,7 +480,34 @@ class _NodeFlowState<T, E> extends State<NodeFlow<T, E>>
         }
       }
     }
-    return best;
+    if (best == null) return null;
+    return _allowsConnection(sourceNodeId, sourcePort, best.$1, best.$2)
+        ? best
+        : null;
+  }
+
+  bool _allowsConnection(
+    String sourceNodeId,
+    FlowPort sourcePort,
+    String targetNodeId,
+    FlowPort targetPort,
+  ) {
+    final request = _normalizeRequest(
+      sourceNodeId,
+      sourcePort,
+      targetNodeId,
+      targetPort,
+    );
+    if (request == null ||
+        _controller.connectionExists(
+          request.sourceNodeId,
+          request.sourcePortId,
+          request.targetNodeId,
+          request.targetPortId,
+        )) {
+      return false;
+    }
+    return widget.isValidConnection?.call(request) ?? true;
   }
 
   /// Normalizes a dropped port pair so the output side becomes the source.

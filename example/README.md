@@ -23,9 +23,10 @@ Selection and node position survive the update. Both controls safely do nothing
 if Alpha has been deleted. Node widgets remain app-defined; buttons and detail
 panels can use ordinary Flutter widgets and navigation.
 
-The Connect demo rejects a second incoming edge in its application callback.
-It does not demonstrate a built-in validation predicate or invalid-target hover
-feedback. Edge labels are metadata; the TRUE/FALSE labels are port labels.
+The Connect demo uses `isValidConnection` to keep occupied inputs from being
+highlighted or accepted. Its application callback checks again before adding
+an edge. This single-input rule belongs to the demo, not the package. Edge
+labels are metadata; the TRUE/FALSE labels are port labels.
 
 ## Browser integration tests
 

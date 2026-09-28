@@ -237,9 +237,22 @@ void main() {
     await dragPort(tester, 'port-source-a-out', 'port-target-in');
     expect(controller.edges, hasLength(1));
 
-    await dragPort(tester, 'port-source-b-out', 'port-target-in');
+    final secondSource = tester.getCenter(
+      find.byKey(const ValueKey<String>('port-source-b-out')),
+    );
+    final target = tester.getCenter(
+      find.byKey(const ValueKey<String>('port-target-in')),
+    );
+    final rejected = await tester.startGesture(
+      secondSource,
+      kind: PointerDeviceKind.mouse,
+    );
+    await rejected.moveTo(target);
+    await tester.pump();
+    expect(controller.pendingConnection.value?.hasTarget, isFalse);
+    await rejected.up();
+    await tester.pump();
     expect(controller.edges, hasLength(1));
-    expect(find.textContaining('already connected'), findsOneWidget);
     expect(controller.pendingConnection.value, isNull);
     expect(tester.takeException(), isNull);
   });
