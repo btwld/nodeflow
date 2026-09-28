@@ -546,12 +546,11 @@ void main() {
         () => FlowController<String, String>(minZoom: 2, maxZoom: 1),
         throwsArgumentError,
       );
-      expect(
-        () => FlowController<String, String>(
-          initialViewport: const FlowViewport(zoom: 0),
-        ),
-        throwsArgumentError,
+      final normalized = FlowController<String, String>(
+        initialViewport: const FlowViewport(zoom: 0),
       );
+      addTearDown(normalized.dispose);
+      expect(normalized.viewport.value.zoom, normalized.minZoom);
     });
 
     test('setViewport clamps zoom and rejects non-finite values', () {
@@ -560,6 +559,9 @@ void main() {
 
       c.setViewport(const FlowViewport(x: 10, y: 20, zoom: 4));
       expect(c.viewport.value, const FlowViewport(x: 10, y: 20, zoom: 2));
+
+      c.setViewport(const FlowViewport(zoom: 0));
+      expect(c.viewport.value.zoom, 0.5);
 
       expect(
         () => c.setViewport(const FlowViewport(x: double.nan)),
