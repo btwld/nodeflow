@@ -41,6 +41,25 @@ void main() {
       expect(c.getNode('a')!.position.value.dx, 0);
     });
 
+    test('initial node selection is normalized into controller selection', () {
+      final c = FlowController<String, String>();
+      addTearDown(c.dispose);
+      final selected = FlowNode<String>(
+        id: 'a',
+        type: 'test',
+        data: 'a',
+        position: GraphPosition.zero,
+        selected: true,
+      );
+
+      c.addNode(selected);
+
+      expect(c.isSelected('a'), isTrue);
+      expect(c.selection.value, <String>{'a'});
+      c.clearSelection();
+      expect(selected.selected.value, isFalse);
+    });
+
     test('removeNode removes incident edges', () {
       final c = FlowController<String, String>();
       addTearDown(c.dispose);
@@ -54,6 +73,18 @@ void main() {
       expect(c.getNode('a'), isNull);
       expect(c.getNode('b'), isNotNull);
       expect(c.edges, isEmpty);
+    });
+
+    test('replaceNode with the same instance is a safe no-op', () {
+      final c = FlowController<String, String>();
+      addTearDown(c.dispose);
+      c.addNode(node('a', 0, 0));
+      final same = c.getNode('a')!;
+
+      expect(c.replaceNode(same), isTrue);
+
+      same.position.value = const GraphPosition(Offset(20, 30));
+      expect(c.getNode('a')!.position.value.offset, const Offset(20, 30));
     });
 
     test('replaceNode preserves controller-owned interaction state', () {
@@ -179,6 +210,26 @@ void main() {
       c.onMoveCommitted = (_) => fired = true;
       c.commitMove();
       expect(fired, isFalse);
+    });
+
+    test('endNodeDrag cleans up when onMoveCommitted throws', () {
+      final c = FlowController<String, String>();
+      addTearDown(c.dispose);
+      c.addNode(node('a', 0, 0));
+      c.onMoveCommitted = (_) => throw StateError('commit failed');
+
+      c.beginNodeDrag('a');
+      c.moveNodeBy('a', const GraphOffset(Offset(10, 10)));
+
+      expect(c.endNodeDrag, throwsStateError);
+      expect(c.mode.value, FlowInteractionMode.idle);
+      expect(c.draggingNodeIds.value, isEmpty);
+
+      c.onMoveCommitted = null;
+      c.beginNodeDrag('a');
+      expect(c.mode.value, FlowInteractionMode.draggingNode);
+      c.cancelNodeDrag();
+      expect(c.mode.value, FlowInteractionMode.idle);
     });
   });
 
@@ -475,6 +526,51 @@ void main() {
   });
 
   group('viewport', () {
+    test('constructor normalizes an out-of-range initial zoom', () {
+      final c = FlowController<String, String>(
+        minZoom: 0.5,
+        maxZoom: 2,
+        initialViewport: const FlowViewport(zoom: 10),
+      );
+      addTearDown(c.dispose);
+
+      expect(c.viewport.value.zoom, 2);
+    });
+
+    test('constructor rejects invalid zoom ranges and viewport values', () {
+      expect(
+        () => FlowController<String, String>(minZoom: 0),
+        throwsArgumentError,
+      );
+      expect(
+        () => FlowController<String, String>(minZoom: 2, maxZoom: 1),
+        throwsArgumentError,
+      );
+      expect(
+        () => FlowController<String, String>(
+          initialViewport: const FlowViewport(zoom: 0),
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('setViewport clamps zoom and rejects non-finite values', () {
+      final c = FlowController<String, String>(minZoom: 0.5, maxZoom: 2);
+      addTearDown(c.dispose);
+
+      c.setViewport(const FlowViewport(x: 10, y: 20, zoom: 4));
+      expect(c.viewport.value, const FlowViewport(x: 10, y: 20, zoom: 2));
+
+      expect(
+        () => c.setViewport(const FlowViewport(x: double.nan)),
+        throwsArgumentError,
+      );
+      expect(
+        () => c.setViewport(const FlowViewport(zoom: double.nan)),
+        throwsArgumentError,
+      );
+    });
+
     test('zoomTo clamps to [minZoom, maxZoom]', () {
       final c = FlowController<String, String>();
       addTearDown(c.dispose);
@@ -514,6 +610,16 @@ void main() {
       expect(vp.zoom, 3);
       expect(vp.x, 1000 / 2 - 100 * 3); // 200
       expect(vp.y, 1000 / 2 - 50 * 3); // 350
+    });
+
+    test('fitView honors controller minZoom above its default cap', () {
+      final c = FlowController<String, String>(minZoom: 2, maxZoom: 4);
+      addTearDown(c.dispose);
+      c.addNode(node('a', 0, 0, size: const Size(200, 100)));
+
+      c.fitView(screenSize: const Size(1000, 1000));
+
+      expect(c.viewport.value.zoom, 2);
     });
 
     test('fitView clamps to the maxZoom argument', () {
