@@ -42,10 +42,15 @@ final class FlowEdge<E> {
   /// Whether the edge is part of the current selection.
   final ValueNotifier<bool> selected;
 
-  /// Whether the edge is dangling (an endpoint is missing/unresolved).
+  /// Whether a resolvable edge should show the built-in warning badge.
+  ///
+  /// An edge whose node or port endpoint cannot be resolved has no drawable
+  /// geometry and is therefore not painted by the built-in renderer.
   final bool dangling;
 
-  /// Optional label rendered along the edge (phase 3).
+  /// Optional application-owned label metadata.
+  ///
+  /// The built-in renderer does not currently paint edge labels.
   final String? label;
 
   /// Optional stroke color override, painted instead of [FlowTheme.edge].
