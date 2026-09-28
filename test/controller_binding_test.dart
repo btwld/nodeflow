@@ -49,9 +49,7 @@ void main() {
     tester,
   ) async {
     final first = _controller(const FlowViewport());
-    final second = _controller(
-      const FlowViewport(x: 120, y: 80, zoom: 1.5),
-    );
+    final second = _controller(const FlowViewport(x: 120, y: 80, zoom: 1.5));
     addTearDown(first.dispose);
     addTearDown(second.dispose);
 

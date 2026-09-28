@@ -15,9 +15,8 @@ class NodeFlowExampleApp extends StatelessWidget {
     return MaterialApp(
       title: 'node_flow examples',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark(
-        useMaterial3: true,
-      ).copyWith(scaffoldBackgroundColor: const Color(0xFF101013)),
+      theme: ThemeData.dark(useMaterial3: true)
+          .copyWith(scaffoldBackgroundColor: const Color(0xFF101013)),
       home: const _HomePage(),
     );
   }
