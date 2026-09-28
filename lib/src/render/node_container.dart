@@ -38,6 +38,7 @@ class NodeContainer<T, E> extends StatelessWidget {
     required this.onPortDragStart,
     required this.onPortDragUpdate,
     required this.onPortDragEnd,
+    required this.onPortDragCancel,
     this.onPortHover,
   });
 
@@ -60,6 +61,9 @@ class NodeContainer<T, E> extends StatelessWidget {
 
   /// Called when the connection drag ends.
   final void Function(Offset globalPosition) onPortDragEnd;
+
+  /// Called when the connection drag is cancelled.
+  final VoidCallback onPortDragCancel;
 
   @override
   Widget build(BuildContext context) {
@@ -149,6 +153,7 @@ class NodeContainer<T, E> extends StatelessWidget {
             onDragStart: (g) => onPortDragStart(node.id, port, g),
             onDragUpdate: onPortDragUpdate,
             onDragEnd: onPortDragEnd,
+            onDragCancel: onPortDragCancel,
           );
         },
       ),
