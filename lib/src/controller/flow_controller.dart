@@ -55,12 +55,8 @@ class FlowController<T, E> extends ChangeNotifier {
         'pan coordinates must be finite',
       );
     }
-    if (!value.zoom.isFinite || value.zoom <= 0) {
-      throw ArgumentError.value(
-        value,
-        'viewport',
-        'zoom must be finite and > 0',
-      );
+    if (!value.zoom.isFinite) {
+      throw ArgumentError.value(value, 'viewport', 'zoom must be finite');
     }
 
     return value.copyWith(zoom: value.zoom.clamp(minZoom, maxZoom).toDouble());
