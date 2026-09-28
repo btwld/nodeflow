@@ -81,8 +81,11 @@ class NodeFlow<T, E> extends StatefulWidget {
 
   /// Called when a drag-to-connect gesture drops on a compatible target port
   /// with a normalized [FlowConnectionRequest]. The canvas never mutates the
-  /// graph: return `true` and add the edge through the controller to accept.
-  /// Identical connections are deduped and never reach this callback.
+  /// graph; add an edge through the controller to accept the request.
+  ///
+  /// The boolean return is retained for 0.2.x compatibility and is not
+  /// currently consumed by the canvas. Identical connections are deduped and
+  /// never reach this callback.
   final bool Function(FlowConnectionRequest request)? onConnect;
 
   /// Called when a port handle is hovered (with the anchor) or unhovered (with
