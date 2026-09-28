@@ -24,8 +24,8 @@ dependencies beyond the Flutter SDK.
   with compatible-port detection, a live connection preview, and normalized
   `onConnect` requests (the canvas never mutates your graph).
 - **Edges** — bezier, smoothstep, or straight routing with React-Flow-compatible
-  path math, optional animated flowing dash, hit-testing, selection, labels,
-  per-edge accent colors, and dangling-edge badges.
+  path math, optional animated flowing dash, hit-testing, selection,
+  per-edge accent colors, and warning badges on resolvable marked edges.
 - **Minimap** — pannable overview with a viewport indicator.
 - **Zero-dependency theming** — pass a `FlowTheme`, register one as a
   `ThemeExtension`, or use the built-in dark palette.
@@ -38,7 +38,7 @@ callbacks (`onMoveCommitted`, `onDeleted`, `onEdgesDeleted`).
 
 ```yaml
 dependencies:
-  node_flow: ^0.2.0
+  node_flow: ^0.2.1
 ```
 
 ## Usage
@@ -93,7 +93,8 @@ class EditorScreen extends StatelessWidget {
       ),
       onConnect: (request) {
         controller.addEdge(FlowEdge(
-          id: '${request.sourceNodeId}-${request.targetNodeId}',
+          id: '${request.sourceNodeId}:${request.sourcePortId}-'
+              '${request.targetNodeId}:${request.targetPortId}',
           sourceNodeId: request.sourceNodeId,
           sourcePortId: request.sourcePortId,
           targetNodeId: request.targetNodeId,
