@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+- Hardened `NodeFlow` controller replacement: listener ownership now follows
+  the active controller, transform state re-syncs on replacement, and borrowed
+  controllers remain usable after the canvas is disposed.
+- Interaction teardown is resilient to pointer cancellation and application
+  callback errors, so marquee, connection, and node-drag state return to idle.
+- Controller invariants now normalize initial selection, make same-instance
+  node replacement safe, and validate/clamp viewport zoom state.
+- Static edges and the minimap now repaint from the node geometry they consume,
+  including programmatic position and measured-size changes.
+- Bezier hit testing now covers same-side curves that overshoot an endpoint
+  along the endpoint chord.
+- Initial `fitViewOnLoad` waits for the first node measurement pass instead of
+  fitting against placeholder sizes.
+- Documentation now distinguishes rendered edge features from application-owned
+  metadata and clarifies the 0.2.x `onConnect` return-value compatibility.
+- CI now analyzes and tests the runnable example package as well as the library.
+
 ## 0.2.1
 
 - Fixed alignment snapping pinning dragged nodes: the snap correction was fed

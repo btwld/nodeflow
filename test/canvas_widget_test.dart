@@ -148,6 +148,38 @@ void main() {
     expect(c.selection.value, isEmpty);
   });
 
+  testWidgets('fitViewOnLoad uses the measured node size', (tester) async {
+    final c = FlowController<String, String>();
+    addTearDown(c.dispose);
+    c.addNode(node('a', 0, 0, size: const Size(10, 10)));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 800,
+            height: 600,
+            child: NodeFlow<String, String>(
+              controller: c,
+              animateEdges: false,
+              minimap: false,
+              nodeBuilder: (context, n) => const SizedBox(
+                key: ValueKey<String>('measured-fit-node'),
+                width: 1000,
+                height: 500,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(c.getNode('a')!.measuredSize.value, const Size(1000, 500));
+    expect(c.viewport.value.zoom, closeTo(0.48, 1e-9));
+  });
+
   testWidgets('reports the child laid-out size into measuredSize', (
     tester,
   ) async {
@@ -223,6 +255,33 @@ void main() {
     await gesture.up();
     await tester.pumpAndSettle();
     expect(c.getNode('a')!.position.value.dx % 20, 0);
+  });
+
+  testWidgets('cancelling a marquee restores the idle interaction mode', (
+    tester,
+  ) async {
+    final c = FlowController<String, String>();
+    addTearDown(c.dispose);
+    c.addNode(node('a', 400, 400));
+    await pumpCanvas(tester, c);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    final canvas = find.byType(NodeFlow<String, String>);
+    final gesture = await tester.startGesture(
+      tester.getTopLeft(canvas) + const Offset(40, 40),
+      kind: PointerDeviceKind.mouse,
+    );
+    await gesture.moveBy(const Offset(80, 60));
+    await tester.pump();
+    expect(c.mode.value, FlowInteractionMode.marquee);
+    expect(c.marqueeRect.value, isNotNull);
+
+    await gesture.cancel();
+    await tester.pump();
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+
+    expect(c.mode.value, FlowInteractionMode.idle);
+    expect(c.marqueeRect.value, isNull);
   });
 
   testWidgets('locked node does not move on drag', (tester) async {

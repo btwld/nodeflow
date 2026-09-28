@@ -269,11 +269,31 @@ class CubicSegment extends PathSegment {
     final deviationBasedCount = maxDeviation > 0
         ? math.max(2, (maxDeviation / (maxPerpExpansion / 2)).ceil())
         : 1;
+
+    // Perpendicular deviation alone misses a cubic whose control points extend
+    // past an endpoint along the chord itself. Same-side ports can create this
+    // shape: the visible curve overshoots the endpoint and returns, so sampling
+    // only the endpoint chord leaves the overshoot without hit rectangles.
+    final chordUnitX = chordDx / chordLength;
+    final chordUnitY = chordDy / chordLength;
+    double alongChord(Offset point) =>
+        (point.dx - start.dx) * chordUnitX + (point.dy - start.dy) * chordUnitY;
+    final cp1Along = alongChord(controlPoint1);
+    final cp2Along = alongChord(controlPoint2);
+    final minAlong = math.min(0.0, math.min(cp1Along, cp2Along));
+    final maxAlong = math.max(chordLength, math.max(cp1Along, cp2Along));
+    final longitudinalOvershoot = math.max(-minAlong, maxAlong - chordLength);
+    final overshootBasedCount = longitudinalOvershoot > 0
+        ? math.max(2, (longitudinalOvershoot / (maxPerpExpansion / 2)).ceil())
+        : 1;
     final curvatureBasedCount = math.max(1, (curvature * 3).ceil());
 
     final segmentCount = math.max(
       curvatureBasedCount,
-      math.max(lengthBasedCount, deviationBasedCount),
+      math.max(
+        lengthBasedCount,
+        math.max(deviationBasedCount, overshootBasedCount),
+      ),
     );
 
     // Generate tight rectangles for each segment.

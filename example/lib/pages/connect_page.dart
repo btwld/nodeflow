@@ -120,7 +120,10 @@ class _ConnectPageState extends State<ConnectPage> {
               controller: _controller,
               onConnect: _onConnect,
               onPortHover: (anchor) => _hovered.value = anchor,
-              nodeBuilder: (context, node) => DemoNodeCard(node: node),
+              nodeBuilder: (context, node) => DemoNodeCard(
+                key: ValueKey<String>('node-${node.id}'),
+                node: node,
+              ),
             ),
             _HoverLabel(hovered: _hovered),
             const Positioned(left: 12, bottom: 12, child: _HintCard()),

@@ -161,6 +161,7 @@ class MinimapPainter<T, E> extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant MinimapPainter<T, E> oldDelegate) =>
+      !identical(oldDelegate.controller, controller) ||
       oldDelegate.theme != theme ||
       oldDelegate.projection != projection ||
       oldDelegate.visibleArea != visibleArea;
@@ -172,7 +173,8 @@ class MinimapPainter<T, E> extends CustomPainter {
 /// The panel is a glass card ([FlowTheme.minimapBackground] +
 /// [FlowTheme.minimapBorder]); inside, node rectangles (accent when selected)
 /// and the viewport indicator are painted through a [MinimapProjection].
-/// Rebuilds on structure/viewport/drag changes; it never animates.
+/// Rebuilds on graph structure, viewport, selection, and node geometry changes;
+/// it never animates.
 class Minimap<T, E> extends StatelessWidget {
   const Minimap({
     super.key,
@@ -192,15 +194,24 @@ class Minimap<T, E> extends StatelessWidget {
   final double padding;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ValueListenableBuilder<int>(
+    valueListenable: controller.structureVersion,
+    builder: (context, _, _) => _buildMinimap(context),
+  );
+
+  Widget _buildMinimap(BuildContext context) {
+    final nodeGeometry = <Listenable>[
+      for (final node in controller.nodes) ...[
+        node.position,
+        node.measuredSize,
+      ],
+    ];
     return RepaintBoundary(
       child: ListenableBuilder(
         listenable: Listenable.merge(<Listenable>[
-          controller.structureVersion,
           controller.viewport,
-          controller.draggingNodeIds,
           controller.selection,
-          controller.edgeSelectionVersion,
+          ...nodeGeometry,
         ]),
         builder: (context, _) {
           final screenSize = controller.lastKnownScreenSize;
@@ -256,7 +267,7 @@ class Minimap<T, E> extends StatelessWidget {
                       controller.structureVersion,
                       controller.viewport,
                       controller.selection,
-                      controller.edgeSelectionVersion,
+                      ...nodeGeometry,
                     ]),
                   ),
                   size: size,

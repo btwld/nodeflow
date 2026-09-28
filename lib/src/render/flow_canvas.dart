@@ -45,6 +45,10 @@ class NodeFlow<T, E> extends StatefulWidget {
   });
 
   /// The state/behavior hub for this canvas.
+  ///
+  /// Use one mounted [NodeFlow] per controller. Canvas-local settings such as
+  /// the last known screen size and alignment-guide enablement live on the
+  /// controller and would otherwise compete across multiple canvases.
   final FlowController<T, E> controller;
 
   /// Builds the visual for a node. Should have a fixed width and intrinsic
@@ -81,8 +85,11 @@ class NodeFlow<T, E> extends StatefulWidget {
 
   /// Called when a drag-to-connect gesture drops on a compatible target port
   /// with a normalized [FlowConnectionRequest]. The canvas never mutates the
-  /// graph: return `true` and add the edge through the controller to accept.
-  /// Identical connections are deduped and never reach this callback.
+  /// graph; add an edge through the controller to accept the request.
+  ///
+  /// The boolean return is retained for 0.2.x compatibility and is not
+  /// currently consumed by the canvas. Identical connections are deduped and
+  /// never reach this callback.
   final bool Function(FlowConnectionRequest request)? onConnect;
 
   /// Called when a port handle is hovered (with the anchor) or unhovered (with
@@ -136,15 +143,22 @@ class _NodeFlowState<T, E> extends State<NodeFlow<T, E>>
       duration: const Duration(milliseconds: 1200),
     );
     _transformationController.addListener(_onTransformChanged);
-    _controller.viewport.addListener(_onViewportChanged);
-    _controller.structureVersion.addListener(_syncDashAnimation);
-    _controller.snapGuidesEnabled = widget.snapGuides;
+    _attachController(_controller);
     HardwareKeyboard.instance.addHandler(_onKeyEvent);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      if (widget.fitViewOnLoad) _controller.fitView(padding: 0.2, maxZoom: 1);
       _syncDashAnimation();
+      if (!widget.fitViewOnLoad) return;
+
+      final initialController = _controller;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !identical(initialController, _controller)) return;
+        initialController.fitView(padding: 0.2, maxZoom: 1);
+      });
+      // addPostFrameCallback does not request another frame. The extra frame
+      // lets deferred node-size reports land before the initial fit runs.
+      WidgetsBinding.instance.scheduleFrame();
     });
   }
 
@@ -159,8 +173,17 @@ class _NodeFlowState<T, E> extends State<NodeFlow<T, E>>
   @override
   void didUpdateWidget(covariant NodeFlow<T, E> oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.animateEdges != widget.animateEdges) _syncDashAnimation();
-    _controller.snapGuidesEnabled = widget.snapGuides;
+    if (!identical(oldWidget.controller, widget.controller)) {
+      _cancelControllerInteraction(oldWidget.controller);
+      _detachController(oldWidget.controller);
+      _attachController(widget.controller);
+      _syncTransformFromController();
+      _resetPointer();
+      _syncDashAnimation();
+    } else {
+      _controller.snapGuidesEnabled = widget.snapGuides;
+      if (oldWidget.animateEdges != widget.animateEdges) _syncDashAnimation();
+    }
     if (oldWidget.theme != widget.theme) {
       _resolvedTheme = widget.theme == null ? FlowTheme.resolve(context) : null;
     }
@@ -170,11 +193,45 @@ class _NodeFlowState<T, E> extends State<NodeFlow<T, E>>
   void dispose() {
     HardwareKeyboard.instance.removeHandler(_onKeyEvent);
     _transformationController.removeListener(_onTransformChanged);
-    _controller.viewport.removeListener(_onViewportChanged);
-    _controller.structureVersion.removeListener(_syncDashAnimation);
+    _cancelControllerInteraction(_controller);
+    _detachController(_controller);
     _dashController.dispose();
     _transformationController.dispose();
     super.dispose();
+  }
+
+  void _cancelControllerInteraction(FlowController<T, E> controller) {
+    switch (controller.mode.value) {
+      case FlowInteractionMode.draggingNode:
+        controller.cancelNodeDrag();
+      case FlowInteractionMode.draggingConnection:
+        controller.endConnection();
+      case FlowInteractionMode.marquee:
+        controller.endMarquee();
+      case FlowInteractionMode.idle:
+      case FlowInteractionMode.panning:
+        break;
+    }
+  }
+
+  void _attachController(FlowController<T, E> controller) {
+    controller.viewport.addListener(_onViewportChanged);
+    controller.structureVersion.addListener(_syncDashAnimation);
+    controller.snapGuidesEnabled = widget.snapGuides;
+  }
+
+  void _detachController(FlowController<T, E> controller) {
+    controller.viewport.removeListener(_onViewportChanged);
+    controller.structureVersion.removeListener(_syncDashAnimation);
+  }
+
+  void _syncTransformFromController() {
+    _syncing = true;
+    try {
+      _transformationController.value = _matrixOf(_controller.viewport.value);
+    } finally {
+      _syncing = false;
+    }
   }
 
   void _syncDashAnimation() {
@@ -211,15 +268,16 @@ class _NodeFlowState<T, E> extends State<NodeFlow<T, E>>
     );
     if (next == _controller.viewport.value) return;
     _syncing = true;
-    _controller.setViewport(next);
-    _syncing = false;
+    try {
+      _controller.setViewport(next);
+    } finally {
+      _syncing = false;
+    }
   }
 
   void _onViewportChanged() {
     if (_syncing) return;
-    _syncing = true;
-    _transformationController.value = _matrixOf(_controller.viewport.value);
-    _syncing = false;
+    _syncTransformFromController();
   }
 
   bool get _shiftPressed {
@@ -276,6 +334,13 @@ class _NodeFlowState<T, E> extends State<NodeFlow<T, E>>
       } else {
         _controller.clearEdgeSelection();
       }
+    }
+    _resetPointer();
+  }
+
+  void _onPointerCancel(PointerCancelEvent event) {
+    if (_controller.mode.value == FlowInteractionMode.marquee) {
+      _controller.endMarquee();
     }
     _resetPointer();
   }
@@ -345,27 +410,34 @@ class _NodeFlowState<T, E> extends State<NodeFlow<T, E>>
       _controller.endConnection();
       return;
     }
-    final local = _globalToLocal(globalPosition);
-    final hit = _hitTestPort(local, pending.sourceNodeId, pending.sourcePort);
-    if (hit != null) {
-      final request = _normalizeRequest(
-        pending.sourceNodeId,
-        pending.sourcePort,
-        hit.$1,
-        hit.$2,
-      );
-      if (request != null &&
-          !_controller.connectionExists(
-            request.sourceNodeId,
-            request.sourcePortId,
-            request.targetNodeId,
-            request.targetPortId,
-          )) {
-        // The canvas never adds the edge: the app owns the model and adds it
-        // through the controller when it accepts the request.
-        widget.onConnect?.call(request);
+    try {
+      final local = _globalToLocal(globalPosition);
+      final hit = _hitTestPort(local, pending.sourceNodeId, pending.sourcePort);
+      if (hit != null) {
+        final request = _normalizeRequest(
+          pending.sourceNodeId,
+          pending.sourcePort,
+          hit.$1,
+          hit.$2,
+        );
+        if (request != null &&
+            !_controller.connectionExists(
+              request.sourceNodeId,
+              request.sourcePortId,
+              request.targetNodeId,
+              request.targetPortId,
+            )) {
+          // The canvas never adds the edge: the app owns the model and adds it
+          // through the controller when it accepts the request.
+          widget.onConnect?.call(request);
+        }
       }
+    } finally {
+      _controller.endConnection();
     }
+  }
+
+  void _onPortDragCancel() {
     _controller.endConnection();
   }
 
@@ -437,6 +509,7 @@ class _NodeFlowState<T, E> extends State<NodeFlow<T, E>>
           onPointerDown: _onPointerDown,
           onPointerMove: _onPointerMove,
           onPointerUp: _onPointerUp,
+          onPointerCancel: _onPointerCancel,
           child: ClipRect(
             child: ColoredBox(
               color: theme.background,
@@ -495,6 +568,7 @@ class _NodeFlowState<T, E> extends State<NodeFlow<T, E>>
                         onPortDragStart: _onPortDragStart,
                         onPortDragUpdate: _onPortDragUpdate,
                         onPortDragEnd: _onPortDragEnd,
+                        onPortDragCancel: _onPortDragCancel,
                       ),
                     ),
                   ),
@@ -589,6 +663,7 @@ class _NodeLayer<T, E> extends StatelessWidget {
     required this.onPortDragStart,
     required this.onPortDragUpdate,
     required this.onPortDragEnd,
+    required this.onPortDragCancel,
     this.onPortHover,
   });
 
@@ -600,6 +675,7 @@ class _NodeLayer<T, E> extends StatelessWidget {
   onPortDragStart;
   final void Function(Offset globalPosition) onPortDragUpdate;
   final void Function(Offset globalPosition) onPortDragEnd;
+  final VoidCallback onPortDragCancel;
 
   @override
   Widget build(BuildContext context) {
@@ -620,6 +696,7 @@ class _NodeLayer<T, E> extends StatelessWidget {
                 onPortDragStart: onPortDragStart,
                 onPortDragUpdate: onPortDragUpdate,
                 onPortDragEnd: onPortDragEnd,
+                onPortDragCancel: onPortDragCancel,
                 child: nodeBuilder(context, node),
               ),
           ],

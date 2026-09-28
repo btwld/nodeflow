@@ -186,6 +186,56 @@ void main() {
     expect(c.mode.value, FlowInteractionMode.idle);
   });
 
+  testWidgets('cancelling a connection drag restores idle state', (
+    tester,
+  ) async {
+    final c = FlowController<String, String>();
+    addTearDown(c.dispose);
+
+    final tl = await pumpConnect(tester, c, (req) => true);
+    final gesture = await tester.startGesture(
+      tl + const Offset(220, 130),
+      kind: PointerDeviceKind.mouse,
+    );
+    await tester.pump();
+    await gesture.moveTo(tl + const Offset(300, 130));
+    await tester.pump();
+
+    expect(c.mode.value, FlowInteractionMode.draggingConnection);
+    expect(c.pendingConnection.value, isNotNull);
+
+    await gesture.cancel();
+    await tester.pump();
+
+    expect(c.mode.value, FlowInteractionMode.idle);
+    expect(c.pendingConnection.value, isNull);
+  });
+
+  testWidgets('onConnect errors still end the connection gesture', (
+    tester,
+  ) async {
+    final c = FlowController<String, String>();
+    addTearDown(c.dispose);
+
+    final tl = await pumpConnect(tester, c, (req) {
+      throw StateError('connect failed');
+    });
+
+    final gesture = await tester.startGesture(
+      tl + const Offset(220, 130),
+      kind: PointerDeviceKind.mouse,
+    );
+    await tester.pump();
+    await gesture.moveTo(tl + const Offset(400, 130));
+    await tester.pump();
+    await gesture.up();
+    await tester.pump();
+
+    expect(tester.takeException(), isA<StateError>());
+    expect(c.pendingConnection.value, isNull);
+    expect(c.mode.value, FlowInteractionMode.idle);
+  });
+
   testWidgets('dropping on empty space cancels without invoking onConnect', (
     tester,
   ) async {

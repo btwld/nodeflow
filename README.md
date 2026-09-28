@@ -24,8 +24,8 @@ dependencies beyond the Flutter SDK.
   with compatible-port detection, a live connection preview, and normalized
   `onConnect` requests (the canvas never mutates your graph).
 - **Edges** — bezier, smoothstep, or straight routing with React-Flow-compatible
-  path math, optional animated flowing dash, hit-testing, selection, labels,
-  per-edge accent colors, and dangling-edge badges.
+  path math, optional animated flowing dash, hit-testing, selection,
+  per-edge accent colors, and warning badges on resolvable marked edges.
 - **Minimap** — pannable overview with a viewport indicator.
 - **Zero-dependency theming** — pass a `FlowTheme`, register one as a
   `ThemeExtension`, or use the built-in dark palette.
@@ -38,7 +38,7 @@ callbacks (`onMoveCommitted`, `onDeleted`, `onEdgesDeleted`).
 
 ```yaml
 dependencies:
-  node_flow: ^0.2.0
+  node_flow: ^0.2.1
 ```
 
 ## Usage
@@ -47,38 +47,56 @@ dependencies:
 import 'package:node_flow/node_flow.dart';
 import 'package:flutter/material.dart';
 
-final controller = FlowController<String, void>();
+class EditorScreen extends StatefulWidget {
+  const EditorScreen({super.key});
 
-void setUpGraph() {
-  controller.addNode(FlowNode(
-    id: 'a',
-    type: 'card',
-    data: 'Hello',
-    position: const GraphPosition(Offset(80, 120)),
-    ports: const [
-      FlowPort(id: 'out', side: PortSide.right, kind: PortKind.output),
-    ],
-  ));
-  controller.addNode(FlowNode(
-    id: 'b',
-    type: 'card',
-    data: 'World',
-    position: const GraphPosition(Offset(420, 200)),
-    ports: const [
-      FlowPort(id: 'in', side: PortSide.left, kind: PortKind.input),
-    ],
-  ));
-  controller.addEdge(FlowEdge(
-    id: 'a-b',
-    sourceNodeId: 'a',
-    sourcePortId: 'out',
-    targetNodeId: 'b',
-    targetPortId: 'in',
-  ));
+  @override
+  State<EditorScreen> createState() => _EditorScreenState();
 }
 
-class EditorScreen extends StatelessWidget {
-  const EditorScreen({super.key});
+class _EditorScreenState extends State<EditorScreen> {
+  late final FlowController<String, void> controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = FlowController<String, void>();
+    _setUpGraph();
+  }
+
+  void _setUpGraph() {
+    controller.addNode(FlowNode(
+      id: 'a',
+      type: 'card',
+      data: 'Hello',
+      position: const GraphPosition(Offset(80, 120)),
+      ports: const [
+        FlowPort(id: 'out', side: PortSide.right, kind: PortKind.output),
+      ],
+    ));
+    controller.addNode(FlowNode(
+      id: 'b',
+      type: 'card',
+      data: 'World',
+      position: const GraphPosition(Offset(420, 200)),
+      ports: const [
+        FlowPort(id: 'in', side: PortSide.left, kind: PortKind.input),
+      ],
+    ));
+    controller.addEdge(FlowEdge(
+      id: 'a:out-b:in',
+      sourceNodeId: 'a',
+      sourcePortId: 'out',
+      targetNodeId: 'b',
+      targetPortId: 'in',
+    ));
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -86,14 +104,17 @@ class EditorScreen extends StatelessWidget {
       controller: controller,
       nodeBuilder: (context, node) => SizedBox(
         width: 200,
-        child: Card(child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Text(node.data),
-        )),
+        child: Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text(node.data),
+          ),
+        ),
       ),
       onConnect: (request) {
         controller.addEdge(FlowEdge(
-          id: '${request.sourceNodeId}-${request.targetNodeId}',
+          id: '${request.sourceNodeId}:${request.sourcePortId}-'
+              '${request.targetNodeId}:${request.targetPortId}',
           sourceNodeId: request.sourceNodeId,
           sourcePortId: request.sourcePortId,
           targetNodeId: request.targetNodeId,

@@ -20,6 +20,7 @@ class PortHandle extends StatefulWidget {
     required this.onDragStart,
     required this.onDragUpdate,
     required this.onDragEnd,
+    required this.onDragCancel,
     this.highlighted = false,
   });
 
@@ -40,6 +41,9 @@ class PortHandle extends StatefulWidget {
 
   /// Called when the connection drag ends, with the global pointer position.
   final void Function(Offset globalPosition) onDragEnd;
+
+  /// Called when the gesture is cancelled before a normal drag end.
+  final VoidCallback onDragCancel;
 
   /// Whether this handle is the current drop target and should be emphasized.
   final bool highlighted;
@@ -115,6 +119,7 @@ class _PortHandleState extends State<PortHandle> {
                 recognizer.onEnd = (DragEndDetails d) {
                   widget.onDragEnd(_lastGlobal);
                 };
+                recognizer.onCancel = widget.onDragCancel;
               }),
         },
         child: content,

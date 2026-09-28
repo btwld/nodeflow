@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderCustomPaint;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:node_flow/node_flow.dart';
 
@@ -180,6 +181,41 @@ void main() {
       );
       expect(canvas.dx - map.dx, 16);
       expect(canvas.dy - map.dy, 80);
+    });
+
+    testWidgets('node geometry changes invalidate the minimap painter', (
+      tester,
+    ) async {
+      final c = FlowController<String, String>();
+      addTearDown(c.dispose);
+      c.addNode(node('a', 0, 0));
+      c.lastKnownScreenSize = const Size(800, 600);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: Minimap<String, String>(
+                controller: c,
+                theme: const FlowTheme.dark(),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final paint = tester.renderObject<RenderCustomPaint>(
+        find.descendant(
+          of: find.byType(Minimap<String, String>),
+          matching: find.byType(CustomPaint),
+        ),
+      );
+      expect(paint.debugNeedsPaint, isFalse);
+
+      c.getNode('a')!.position.value = const GraphPosition(Offset(100, 80));
+
+      expect(paint.debugNeedsPaint, isTrue);
     });
 
     testWidgets('tapping the minimap pans the viewport', (tester) async {
