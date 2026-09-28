@@ -45,6 +45,10 @@ class NodeFlow<T, E> extends StatefulWidget {
   });
 
   /// The state/behavior hub for this canvas.
+  ///
+  /// Use one mounted [NodeFlow] per controller. Canvas-local settings such as
+  /// the last known screen size and alignment-guide enablement live on the
+  /// controller and would otherwise compete across multiple canvases.
   final FlowController<T, E> controller;
 
   /// Builds the visual for a node. Should have a fixed width and intrinsic
