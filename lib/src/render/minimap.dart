@@ -193,14 +193,19 @@ class Minimap<T, E> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final nodeGeometry = <Listenable>[
+      for (final node in controller.nodes) ...[
+        node.position,
+        node.measuredSize,
+      ],
+    ];
     return RepaintBoundary(
       child: ListenableBuilder(
         listenable: Listenable.merge(<Listenable>[
           controller.structureVersion,
           controller.viewport,
-          controller.draggingNodeIds,
           controller.selection,
-          controller.edgeSelectionVersion,
+          ...nodeGeometry,
         ]),
         builder: (context, _) {
           final screenSize = controller.lastKnownScreenSize;
@@ -256,7 +261,7 @@ class Minimap<T, E> extends StatelessWidget {
                       controller.structureVersion,
                       controller.viewport,
                       controller.selection,
-                      controller.edgeSelectionVersion,
+                      ...nodeGeometry,
                     ]),
                   ),
                   size: size,
