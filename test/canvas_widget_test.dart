@@ -257,6 +257,33 @@ void main() {
     expect(c.getNode('a')!.position.value.dx % 20, 0);
   });
 
+  testWidgets('cancelling a marquee restores the idle interaction mode', (
+    tester,
+  ) async {
+    final c = FlowController<String, String>();
+    addTearDown(c.dispose);
+    c.addNode(node('a', 400, 400));
+    await pumpCanvas(tester, c);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    final canvas = find.byType(NodeFlow<String, String>);
+    final gesture = await tester.startGesture(
+      tester.getTopLeft(canvas) + const Offset(40, 40),
+      kind: PointerDeviceKind.mouse,
+    );
+    await gesture.moveBy(const Offset(80, 60));
+    await tester.pump();
+    expect(c.mode.value, FlowInteractionMode.marquee);
+    expect(c.marqueeRect.value, isNotNull);
+
+    await gesture.cancel();
+    await tester.pump();
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+
+    expect(c.mode.value, FlowInteractionMode.idle);
+    expect(c.marqueeRect.value, isNull);
+  });
+
   testWidgets('locked node does not move on drag', (tester) async {
     final c = FlowController<String, String>();
     addTearDown(c.dispose);
