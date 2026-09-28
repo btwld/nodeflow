@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.2
 
 - Added node tap, double-tap, and context-menu callbacks for app-owned detail
   views while retaining selection and child-widget gesture behavior.
