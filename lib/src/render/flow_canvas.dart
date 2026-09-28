@@ -141,8 +141,17 @@ class _NodeFlowState<T, E> extends State<NodeFlow<T, E>>
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      if (widget.fitViewOnLoad) _controller.fitView(padding: 0.2, maxZoom: 1);
       _syncDashAnimation();
+      if (!widget.fitViewOnLoad) return;
+
+      final initialController = _controller;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !identical(initialController, _controller)) return;
+        initialController.fitView(padding: 0.2, maxZoom: 1);
+      });
+      // addPostFrameCallback does not request another frame. The extra frame
+      // lets deferred node-size reports land before the initial fit runs.
+      WidgetsBinding.instance.scheduleFrame();
     });
   }
 
