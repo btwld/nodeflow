@@ -172,6 +172,44 @@ void main() {
     expect(controller.selection.value, {'one'});
   });
 
+  testWidgets('two distant taps keep the first tap modifier', (tester) async {
+    final controller = _controller();
+    addTearDown(controller.dispose);
+    controller.addNode(
+      FlowNode<String>(
+        id: 'other',
+        type: 'card',
+        data: 'Other',
+        position: const GraphPosition(Offset(350, 100)),
+      ),
+    );
+    controller.select(['other']);
+    final selections = <Set<String>>[];
+    await tester.pumpWidget(
+      _canvas(
+        controller,
+        onNodeTap: (_) => selections.add({...controller.selection.value}),
+        onNodeDoubleTap: (_) => fail('Distant taps are not a double tap'),
+      ),
+    );
+    await tester.pump();
+    final topLeft = tester.getTopLeft(
+      find.byKey(const ValueKey('node-card-one')),
+    );
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shift);
+    await tester.tapAt(topLeft + const Offset(20, 12));
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shift);
+    await tester.pump(const Duration(milliseconds: 80));
+    await tester.tapAt(topLeft + const Offset(155, 12));
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(selections, [
+      {'other', 'one'},
+      {'one'},
+    ]);
+  });
+
   testWidgets('secondary click and long press report global point without '
       'selecting', (tester) async {
     final controller = _controller();
@@ -234,6 +272,192 @@ void main() {
     await tester.pump();
     expect(calls, 2);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('rapid taps on an embedded button stay with the button', (
+    tester,
+  ) async {
+    final controller = _controller();
+    addTearDown(controller.dispose);
+    var childTaps = 0;
+    var nodeTaps = 0;
+    var doubleTaps = 0;
+    await tester.pumpWidget(
+      _canvas(
+        controller,
+        onNodeTap: (_) => nodeTaps++,
+        onNodeDoubleTap: (_) => doubleTaps++,
+        onChildTap: () => childTaps++,
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.text('Open'));
+    await tester.pump(const Duration(milliseconds: 80));
+    await tester.tap(find.text('Open'));
+    await tester.pump();
+
+    expect(childTaps, 2);
+    expect(nodeTaps, 0);
+    expect(doubleTaps, 0);
+    expect(controller.selection.value, isEmpty);
+  });
+
+  testWidgets('small mouse movement on second click still double taps', (
+    tester,
+  ) async {
+    final controller = _controller();
+    addTearDown(controller.dispose);
+    var doubleTaps = 0;
+    await tester.pumpWidget(
+      _canvas(controller, onNodeDoubleTap: (_) => doubleTaps++),
+    );
+    await tester.pump();
+    final point =
+        tester.getTopLeft(find.byKey(const ValueKey('node-card-one'))) +
+        const Offset(20, 12);
+
+    final first = await tester.startGesture(
+      point,
+      kind: PointerDeviceKind.mouse,
+    );
+    await first.up();
+    await tester.pump(const Duration(milliseconds: 80));
+    final second = await tester.startGesture(
+      point,
+      kind: PointerDeviceKind.mouse,
+    );
+    await second.moveBy(const Offset(3, 0));
+    await second.up();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(doubleTaps, 1);
+    expect(
+      controller.getNode('one')!.position.value.offset,
+      const Offset(100, 100),
+    );
+    expect(controller.mode.value, FlowInteractionMode.idle);
+  });
+
+  testWidgets('a drag after one tap does not activate a double tap', (
+    tester,
+  ) async {
+    final controller = _controller();
+    addTearDown(controller.dispose);
+    var doubleTaps = 0;
+    await tester.pumpWidget(
+      _canvas(controller, onNodeDoubleTap: (_) => doubleTaps++),
+    );
+    await tester.pump();
+    final point =
+        tester.getTopLeft(find.byKey(const ValueKey('node-card-one'))) +
+        const Offset(20, 12);
+
+    final first = await tester.startGesture(
+      point,
+      kind: PointerDeviceKind.mouse,
+    );
+    await first.up();
+    await tester.pump(const Duration(milliseconds: 80));
+    final drag = await tester.startGesture(
+      point,
+      kind: PointerDeviceKind.mouse,
+    );
+    await drag.moveBy(const Offset(3, 0));
+    await tester.pump();
+    await drag.moveBy(const Offset(40, 24));
+    await tester.pump();
+    await drag.moveBy(const Offset(20, 12));
+    await drag.up();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(doubleTaps, 0);
+    expect(
+      controller.getNode('one')!.position.value.offset,
+      isNot(const Offset(100, 100)),
+    );
+    expect(controller.mode.value, FlowInteractionMode.idle);
+  });
+
+  testWidgets('a drag after Shift tap keeps the additive selection', (
+    tester,
+  ) async {
+    final controller = _controller();
+    addTearDown(controller.dispose);
+    controller.addNode(
+      FlowNode<String>(
+        id: 'other',
+        type: 'card',
+        data: 'Other',
+        position: const GraphPosition(Offset(350, 100)),
+      ),
+    );
+    controller.select(['other']);
+    await tester.pumpWidget(_canvas(controller, onNodeDoubleTap: (_) {}));
+    await tester.pump();
+    final point =
+        tester.getTopLeft(find.byKey(const ValueKey('node-card-one'))) +
+        const Offset(20, 12);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shift);
+    final first = await tester.startGesture(
+      point,
+      kind: PointerDeviceKind.mouse,
+    );
+    await first.up();
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shift);
+    await tester.pump(const Duration(milliseconds: 80));
+    final drag = await tester.startGesture(
+      point,
+      kind: PointerDeviceKind.mouse,
+    );
+    await drag.moveBy(const Offset(40, 24));
+    await tester.pump();
+    await drag.moveBy(const Offset(20, 12));
+    await drag.up();
+    await tester.pump();
+
+    expect(controller.selection.value, {'other', 'one'});
+    expect(
+      controller.getNode('one')!.position.value.offset,
+      isNot(const Offset(100, 100)),
+    );
+    expect(
+      controller.getNode('other')!.position.value.offset,
+      isNot(const Offset(350, 100)),
+    );
+  });
+
+  testWidgets('holding primary mouse button does not open context menu', (
+    tester,
+  ) async {
+    final controller = _controller();
+    addTearDown(controller.dispose);
+    var contextRequests = 0;
+    await tester.pumpWidget(
+      _canvas(controller, onNodeContextMenu: (_, _) => contextRequests++),
+    );
+    await tester.pump();
+    final point =
+        tester.getTopLeft(find.byKey(const ValueKey('node-card-one'))) +
+        const Offset(20, 12);
+
+    final mouse = await tester.startGesture(
+      point,
+      kind: PointerDeviceKind.mouse,
+    );
+    await tester.pump(const Duration(milliseconds: 600));
+    await mouse.moveBy(const Offset(40, 24));
+    await tester.pump();
+    await mouse.moveBy(const Offset(20, 12));
+    await mouse.up();
+    await tester.pump();
+
+    expect(contextRequests, 0);
+    expect(
+      controller.getNode('one')!.position.value.offset,
+      isNot(const Offset(100, 100)),
+    );
   });
 
   testWidgets('drag does not activate a node', (tester) async {

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -84,6 +86,11 @@ class NodeContainer<T, E> extends StatefulWidget {
 
 class _NodeContainerState<T, E> extends State<NodeContainer<T, E>> {
   bool _additiveAtDown = false;
+  Timer? _singleTapTimer;
+  Offset? _firstTapPosition;
+  bool _firstTapAdditive = false;
+  Offset? _pointerDownPosition;
+  bool _mousePanMayBeDoubleTap = false;
 
   FlowNode<T> get node => widget.node;
   FlowController<T, E> get controller => widget.controller;
@@ -116,7 +123,10 @@ class _NodeContainerState<T, E> extends State<NodeContainer<T, E>> {
                 children: <Widget>[
                   RepaintBoundary(
                     child: Listener(
-                      onPointerDown: (_) => _additiveAtDown = _additivePressed,
+                      onPointerDown: (event) {
+                        _additiveAtDown = _additivePressed;
+                        _pointerDownPosition = event.position;
+                      },
                       child: RawGestureDetector(
                         behavior: HitTestBehavior.deferToChild,
                         gestures: <Type, GestureRecognizerFactory>{
@@ -128,7 +138,7 @@ class _NodeContainerState<T, E> extends State<NodeContainer<T, E>> {
                                   ..onTapCancel = () {
                                     _additiveAtDown = false;
                                   }
-                                  ..onTap = _handleTap
+                                  ..onTapUp = _handleTapUp
                                   ..onSecondaryTapUp = onNodeContextMenu == null
                                       ? null
                                       : (details) => onNodeContextMenu!(
@@ -136,27 +146,21 @@ class _NodeContainerState<T, E> extends State<NodeContainer<T, E>> {
                                           details.globalPosition,
                                         );
                               }),
-                          if (onNodeDoubleTap != null)
-                            DoubleTapGestureRecognizer:
-                                GestureRecognizerFactoryWithHandlers<
-                                  DoubleTapGestureRecognizer
-                                >(
-                                  DoubleTapGestureRecognizer.new,
-                                  (recognizer) =>
-                                      recognizer.onDoubleTap = _handleDoubleTap,
-                                ),
                           if (onNodeContextMenu != null)
                             LongPressGestureRecognizer:
                                 GestureRecognizerFactoryWithHandlers<
                                   LongPressGestureRecognizer
                                 >(
                                   LongPressGestureRecognizer.new,
-                                  (recognizer) =>
-                                      recognizer.onLongPressStart = (details) =>
-                                          onNodeContextMenu!(
-                                            node,
-                                            details.globalPosition,
-                                          ),
+                                  (recognizer) => recognizer
+                                    ..supportedDevices = const {
+                                      PointerDeviceKind.touch,
+                                    }
+                                    ..onLongPressStart = (details) =>
+                                        onNodeContextMenu!(
+                                          node,
+                                          details.globalPosition,
+                                        ),
                                 ),
                           NonTrackpadPanGestureRecognizer:
                               GestureRecognizerFactoryWithHandlers<
@@ -263,27 +267,98 @@ class _NodeContainerState<T, E> extends State<NodeContainer<T, E>> {
         keys.contains(LogicalKeyboardKey.controlRight);
   }
 
-  void _handleTap() {
-    if (_additiveAtDown) {
+  void _handleTapUp(TapUpDetails details) {
+    final additive = _additiveAtDown;
+    _additiveAtDown = false;
+    if (onNodeDoubleTap == null) {
+      _dispatchTap(additive);
+      return;
+    }
+
+    final firstPosition = _firstTapPosition;
+    if (_singleTapTimer != null && firstPosition != null) {
+      if ((details.globalPosition - firstPosition).distance <= kDoubleTapSlop) {
+        _cancelPendingTap();
+        controller.select(<String>[node.id]);
+        onNodeDoubleTap?.call(node);
+        return;
+      }
+      _dispatchPendingTap();
+    }
+
+    _firstTapPosition = details.globalPosition;
+    _firstTapAdditive = additive;
+    _singleTapTimer = Timer(kDoubleTapTimeout, _dispatchPendingTap);
+  }
+
+  void _dispatchPendingTap() {
+    if (_singleTapTimer == null) return;
+    final additive = _firstTapAdditive;
+    _cancelPendingTap();
+    _dispatchTap(additive);
+  }
+
+  void _cancelPendingTap() {
+    _singleTapTimer?.cancel();
+    _singleTapTimer = null;
+    _firstTapPosition = null;
+    _firstTapAdditive = false;
+  }
+
+  void _dispatchTap(bool additive) {
+    if (additive) {
       controller.toggle(node.id);
     } else {
       controller.select(<String>[node.id]);
     }
-    _additiveAtDown = false;
     onNodeTap?.call(node);
   }
 
-  void _handleDoubleTap() {
-    controller.select(<String>[node.id]);
-    onNodeDoubleTap?.call(node);
+  @override
+  void didUpdateWidget(covariant NodeContainer<T, E> oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.node.id != node.id ||
+        (oldWidget.onNodeDoubleTap == null) != (onNodeDoubleTap == null)) {
+      _cancelPendingTap();
+    }
+  }
+
+  @override
+  void dispose() {
+    _cancelPendingTap();
+    super.dispose();
   }
 
   void _handleDragStart(DragStartDetails details) {
+    final down = _pointerDownPosition;
+    final first = _firstTapPosition;
+    if (details.kind == PointerDeviceKind.mouse &&
+        onNodeDoubleTap != null &&
+        _singleTapTimer != null &&
+        down != null &&
+        first != null &&
+        (down - first).distance <= kDoubleTapSlop &&
+        (details.globalPosition - down).distance <= kDoubleTapTouchSlop) {
+      _mousePanMayBeDoubleTap = true;
+      _singleTapTimer!.cancel();
+      return;
+    }
+    _dispatchPendingTap();
     if (node.locked) return;
     controller.beginNodeDrag(node.id);
   }
 
   void _handleDragUpdate(DragUpdateDetails details) {
+    if (_mousePanMayBeDoubleTap) {
+      final down = _pointerDownPosition;
+      if (down != null &&
+          (details.globalPosition - down).distance <= kDoubleTapTouchSlop) {
+        return;
+      }
+      _mousePanMayBeDoubleTap = false;
+      _dispatchPendingTap();
+      if (!node.locked) controller.beginNodeDrag(node.id);
+    }
     if (node.locked) return;
     // `details.delta` is already in graph coordinates because this recognizer
     // lives inside the InteractiveViewer's transformed subtree.
@@ -293,10 +368,19 @@ class _NodeContainerState<T, E> extends State<NodeContainer<T, E>> {
   // No locked guard here: locking a node mid-drag must not skip the commit,
   // or the drag session (and the interaction mode) would be stranded.
   void _handleDragEnd(DragEndDetails details) {
+    if (_mousePanMayBeDoubleTap) {
+      _mousePanMayBeDoubleTap = false;
+      _cancelPendingTap();
+      controller.select(<String>[node.id]);
+      onNodeDoubleTap?.call(node);
+      return;
+    }
     controller.endNodeDrag();
   }
 
   void _handleDragCancel() {
+    if (_mousePanMayBeDoubleTap) _dispatchPendingTap();
+    _mousePanMayBeDoubleTap = false;
     controller.cancelNodeDrag();
   }
 }
