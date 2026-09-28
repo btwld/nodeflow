@@ -148,6 +148,38 @@ void main() {
     expect(c.selection.value, isEmpty);
   });
 
+  testWidgets('fitViewOnLoad uses the measured node size', (tester) async {
+    final c = FlowController<String, String>();
+    addTearDown(c.dispose);
+    c.addNode(node('a', 0, 0, size: const Size(10, 10)));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 800,
+            height: 600,
+            child: NodeFlow<String, String>(
+              controller: c,
+              animateEdges: false,
+              minimap: false,
+              nodeBuilder: (context, n) => const SizedBox(
+                key: ValueKey<String>('measured-fit-node'),
+                width: 1000,
+                height: 500,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(c.getNode('a')!.measuredSize.value, const Size(1000, 500));
+    expect(c.viewport.value.zoom, closeTo(0.48, 1e-9));
+  });
+
   testWidgets('reports the child laid-out size into measuredSize', (
     tester,
   ) async {
