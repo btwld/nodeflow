@@ -168,6 +168,7 @@ class EdgesPainter<T, E> extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant EdgesPainter<T, E> oldDelegate) =>
+      !identical(oldDelegate.controller, controller) ||
       oldDelegate.theme != theme ||
       oldDelegate.style != style ||
       oldDelegate.includeDragging != includeDragging ||

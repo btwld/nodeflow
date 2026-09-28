@@ -814,8 +814,9 @@ class FlowController<T, E> extends ChangeNotifier {
   ///
   /// [padding] is a fraction of each screen dimension reserved as margin on
   /// each side (0.2 == 20%). The resulting zoom is clamped to
-  /// `[minZoom, min(maxZoom, this.maxZoom)]`. No-op when there are no nodes or
-  /// no known screen size.
+  /// `[minZoom, max(minZoom, min(maxZoom, this.maxZoom))]`, so a requested
+  /// [maxZoom] below [minZoom] still fits at [minZoom]. No-op when there are no
+  /// nodes or no known screen size.
   void fitView({Size? screenSize, double padding = 0.2, double maxZoom = 1}) {
     final size = screenSize ?? lastKnownScreenSize;
     if (size == null || size.isEmpty) return;

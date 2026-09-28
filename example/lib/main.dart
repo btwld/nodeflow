@@ -33,6 +33,7 @@ class _HomePage extends StatelessWidget {
       body: ListView(
         children: <Widget>[
           ListTile(
+            key: const ValueKey<String>('route-static'),
             leading: const Icon(Icons.center_focus_strong),
             title: const Text('01 · Static camera'),
             subtitle: const Text('Three nodes · pan / zoom / fit'),
@@ -41,6 +42,7 @@ class _HomePage extends StatelessWidget {
             ).push(MaterialPageRoute<void>(builder: (_) => const StaticPage())),
           ),
           ListTile(
+            key: const ValueKey<String>('route-editing'),
             leading: const Icon(Icons.edit),
             title: const Text('02 · Editing'),
             subtitle: const Text('Drag · select · marquee · delete'),
@@ -49,6 +51,7 @@ class _HomePage extends StatelessWidget {
             ),
           ),
           ListTile(
+            key: const ValueKey<String>('route-edges'),
             leading: const Icon(Icons.timeline),
             title: const Text('03 · Edges'),
             subtitle: const Text('Animated bezier · branches · dangling badge'),
@@ -57,6 +60,7 @@ class _HomePage extends StatelessWidget {
             ).push(MaterialPageRoute<void>(builder: (_) => const EdgesPage())),
           ),
           ListTile(
+            key: const ValueKey<String>('route-connect'),
             leading: const Icon(Icons.cable),
             title: const Text('04 · Connect'),
             subtitle: const Text('Drag-to-connect · validation · dedupe'),

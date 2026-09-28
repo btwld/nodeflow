@@ -198,7 +198,10 @@ class _EdgesPageState extends State<EdgesPage> {
               child: NodeFlow<DemoNode, Object?>(
                 controller: _controller,
                 minimap: true,
-                nodeBuilder: (context, node) => DemoNodeCard(node: node),
+                nodeBuilder: (context, node) => DemoNodeCard(
+                  key: ValueKey<String>('node-${node.id}'),
+                  node: node,
+                ),
               ),
             ),
           ),

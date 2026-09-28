@@ -21,7 +21,7 @@ jobs:
       - run: flutter pub get
       - run: flutter pub get
         working-directory: example
-      - run: dart format --output=none --set-exit-if-changed lib test example/lib
+      - run: dart format --output=none --set-exit-if-changed lib test example/lib example/test example/integration_test example/test_driver
       - run: flutter analyze
       - run: flutter analyze
         working-directory: example
@@ -50,3 +50,100 @@ jobs:
         working-directory: example
       - run: flutter test
         working-directory: example
+
+  browser:
+    name: browser (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: "3.41.0 oldest supported"
+            flutter-version: "3.41.0"
+          - name: "latest stable"
+            flutter-version: ""
+    steps:
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ matrix.flutter-version }}
+          cache: true
+      - uses: browser-actions/setup-chrome@v2
+        id: chrome
+        with:
+          chrome-version: "154.0.8037.57"
+          install-chromedriver: true
+      - run: flutter pub get
+        working-directory: example
+      - name: Run Chrome smoke and workflows
+        working-directory: example
+        env:
+          CHROME_EXECUTABLE: ${{ steps.chrome.outputs.chrome-path }}
+        run: |
+          set -euo pipefail
+          mkdir -p build/integration_artifacts
+          flutter --version | tee build/integration_artifacts/flutter-version.txt
+          "$CHROME_EXECUTABLE" --version | tee build/integration_artifacts/chrome-version.txt
+          "${{ steps.chrome.outputs.chromedriver-path }}" --version | tee build/integration_artifacts/chromedriver-version.txt
+          "${{ steps.chrome.outputs.chromedriver-path }}" --port=4444 > build/integration_artifacts/chromedriver.log 2>&1 &
+          driver_pid=$!
+          trap 'kill "$driver_pid" 2>/dev/null || true' EXIT
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:4444/status > build/integration_artifacts/chromedriver-status.json; then break; fi
+            sleep 1
+          done
+          curl --fail --show-error --silent http://127.0.0.1:4444/status > build/integration_artifacts/chromedriver-status.json
+          timeout 8m flutter drive --driver=test_driver/integration_test.dart --target=integration_test/app_smoke_test.dart -d web-server --headless --browser-dimension=1600x1024@1 2>&1 | tee build/integration_artifacts/smoke.log
+          timeout 10m flutter drive --driver=test_driver/integration_test.dart --target=integration_test/workflow_test.dart -d web-server --headless --browser-dimension=1600x1024@1 2>&1 | tee build/integration_artifacts/workflow.log
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-${{ matrix.name }}-failure
+          path: example/build/integration_artifacts/
+          if-no-files-found: warn
+
+  browser-visual:
+    name: browser visual (Flutter 3.41.2, Chrome 154)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.41.2"
+          channel: stable
+          cache: true
+      - uses: browser-actions/setup-chrome@v2
+        id: chrome
+        with:
+          chrome-version: "154.0.8037.57"
+          install-chromedriver: true
+      - run: flutter pub get
+        working-directory: example
+      - name: Compare lifecycle screenshots in Chrome
+        working-directory: example
+        env:
+          CHROME_EXECUTABLE: ${{ steps.chrome.outputs.chrome-path }}
+        run: |
+          set -euo pipefail
+          mkdir -p build/integration_artifacts
+          flutter --version | tee build/integration_artifacts/flutter-version.txt
+          "$CHROME_EXECUTABLE" --version | tee build/integration_artifacts/chrome-version.txt
+          "${{ steps.chrome.outputs.chromedriver-path }}" --version | tee build/integration_artifacts/chromedriver-version.txt
+          "${{ steps.chrome.outputs.chromedriver-path }}" --port=4444 > build/integration_artifacts/chromedriver.log 2>&1 &
+          driver_pid=$!
+          trap 'kill "$driver_pid" 2>/dev/null || true' EXIT
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:4444/status > build/integration_artifacts/chromedriver-status.json; then break; fi
+            sleep 1
+          done
+          curl --fail --show-error --silent http://127.0.0.1:4444/status > build/integration_artifacts/chromedriver-status.json
+          timeout 10m flutter drive --driver=test_driver/lifecycle_driver.dart --target=integration_test/lifecycle_test.dart -d web-server --headless --browser-dimension=1600x1024@1 2>&1 | tee build/integration_artifacts/lifecycle.log
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-visual-failure
+          path: example/build/integration_artifacts/
+          if-no-files-found: warn

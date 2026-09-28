@@ -73,7 +73,10 @@ class _EditingPageState extends State<EditingPage> {
         children: <Widget>[
           NodeFlow<DemoNode, Object?>(
             controller: _controller,
-            nodeBuilder: (context, node) => DemoNodeCard(node: node),
+            nodeBuilder: (context, node) => DemoNodeCard(
+              key: ValueKey<String>('node-${node.id}'),
+              node: node,
+            ),
           ),
           const Positioned(left: 12, bottom: 12, child: _HintCard()),
         ],

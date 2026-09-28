@@ -75,7 +75,8 @@ class _StaticPageState extends State<StaticPage> {
       ),
       body: NodeFlow<DemoNode, Object?>(
         controller: _controller,
-        nodeBuilder: (context, node) => DemoNodeCard(node: node),
+        nodeBuilder: (context, node) =>
+            DemoNodeCard(key: ValueKey<String>('node-${node.id}'), node: node),
       ),
     );
   }
