@@ -29,7 +29,44 @@ class FlowController<T, E> extends ChangeNotifier {
     this.snapGrid = 20.0,
     this.snapGuideThreshold = 8.0,
     FlowViewport initialViewport = const FlowViewport(),
-  }) : viewport = ValueNotifier(initialViewport);
+  }) : viewport = ValueNotifier(
+         _normalizeViewport(initialViewport, minZoom, maxZoom),
+       );
+
+  static FlowViewport _normalizeViewport(
+    FlowViewport value,
+    double minZoom,
+    double maxZoom,
+  ) {
+    if (!minZoom.isFinite || minZoom <= 0) {
+      throw ArgumentError.value(minZoom, 'minZoom', 'must be finite and > 0');
+    }
+    if (!maxZoom.isFinite || maxZoom < minZoom) {
+      throw ArgumentError.value(
+        maxZoom,
+        'maxZoom',
+        'must be finite and >= minZoom',
+      );
+    }
+    if (!value.x.isFinite || !value.y.isFinite) {
+      throw ArgumentError.value(
+        value,
+        'viewport',
+        'pan coordinates must be finite',
+      );
+    }
+    if (!value.zoom.isFinite || value.zoom <= 0) {
+      throw ArgumentError.value(
+        value,
+        'viewport',
+        'zoom must be finite and > 0',
+      );
+    }
+
+    return value.copyWith(
+      zoom: value.zoom.clamp(minZoom, maxZoom).toDouble(),
+    );
+  }
 
   /// Minimum zoom factor.
   final double minZoom;
@@ -138,6 +175,9 @@ class FlowController<T, E> extends ChangeNotifier {
   void addNode(FlowNode<T> node) {
     if (_nodes.containsKey(node.id)) return;
     _nodes[node.id] = node;
+    if (node.selected.value) {
+      _applySelection(<String>{...selection.value, node.id});
+    }
     _bumpStructure();
   }
 
@@ -151,6 +191,7 @@ class FlowController<T, E> extends ChangeNotifier {
   bool replaceNode(FlowNode<T> node) {
     final existing = _nodes[node.id];
     if (existing == null) return false;
+    if (identical(existing, node)) return true;
     node.selected.value = existing.selected.value;
     node.measuredSize.value = existing.measuredSize.value;
     node.zIndex.value = existing.zIndex.value;
@@ -411,13 +452,16 @@ class FlowController<T, E> extends ChangeNotifier {
 
   /// Commits the in-flight drag and returns to [FlowInteractionMode.idle].
   void endNodeDrag() {
-    commitMove();
-    _dragStartPositions.clear();
-    _dragRawOffset = GraphOffset.zero;
-    if (draggingNodeIds.value.isNotEmpty) {
-      draggingNodeIds.value = const <String>{};
+    try {
+      commitMove();
+    } finally {
+      _dragStartPositions.clear();
+      _dragRawOffset = GraphOffset.zero;
+      if (draggingNodeIds.value.isNotEmpty) {
+        draggingNodeIds.value = const <String>{};
+      }
+      mode.value = FlowInteractionMode.idle;
     }
-    mode.value = FlowInteractionMode.idle;
   }
 
   /// Aborts the in-flight drag, restoring every dragged node to its position
@@ -739,7 +783,8 @@ class FlowController<T, E> extends ChangeNotifier {
 
   /// Sets the camera directly. Pan/zoom sync from the canvas flows through here.
   void setViewport(FlowViewport next) {
-    if (next != viewport.value) viewport.value = next;
+    final normalized = _normalizeViewport(next, minZoom, maxZoom);
+    if (normalized != viewport.value) viewport.value = normalized;
   }
 
   /// Sets the absolute zoom, clamped to `[minZoom, maxZoom]`, keeping
@@ -789,7 +834,10 @@ class FlowController<T, E> extends ChangeNotifier {
 
     final scaleX = availableWidth / bounds.width;
     final scaleY = availableHeight / bounds.height;
-    final upperZoom = math.min(maxZoom, this.maxZoom);
+    if (!maxZoom.isFinite || maxZoom <= 0) {
+      throw ArgumentError.value(maxZoom, 'maxZoom', 'must be finite and > 0');
+    }
+    final upperZoom = math.max(minZoom, math.min(maxZoom, this.maxZoom));
     final zoom = math.min(scaleX, scaleY).clamp(minZoom, upperZoom);
 
     final center = bounds.center;
