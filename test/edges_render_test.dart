@@ -91,6 +91,58 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('node geometry changes invalidate the static edge layer', (
+    tester,
+  ) async {
+    final c = FlowController<String, String>();
+    addTearDown(c.dispose);
+    c.addNode(node('a', 100, 100, ports: const <FlowPort>[_outPort]));
+    c.addNode(node('b', 400, 100, ports: const <FlowPort>[_inPort]));
+    c.addEdge(edge('e', 'a', 'b'));
+
+    await pumpCanvas(tester, c);
+
+    final layer = tester.renderObject<RenderCustomPaint>(
+      find
+          .descendant(
+            of: find.byType(EdgesLayer<String, String>),
+            matching: find.byType(CustomPaint),
+          )
+          .first,
+    );
+    expect(layer.debugNeedsPaint, isFalse);
+
+    c.getNode('a')!.position.value =
+        const GraphPosition(Offset(140, 120));
+
+    expect(layer.debugNeedsPaint, isTrue);
+  });
+
+  testWidgets('structure changes invalidate the static edge layer', (
+    tester,
+  ) async {
+    final c = FlowController<String, String>();
+    addTearDown(c.dispose);
+    c.addNode(node('a', 100, 100, ports: const <FlowPort>[_outPort]));
+    c.addNode(node('b', 400, 100, ports: const <FlowPort>[_inPort]));
+
+    await pumpCanvas(tester, c);
+
+    final layer = tester.renderObject<RenderCustomPaint>(
+      find
+          .descendant(
+            of: find.byType(EdgesLayer<String, String>),
+            matching: find.byType(CustomPaint),
+          )
+          .first,
+    );
+    expect(layer.debugNeedsPaint, isFalse);
+
+    c.addEdge(edge('e', 'a', 'b'));
+
+    expect(layer.debugNeedsPaint, isTrue);
+  });
+
   testWidgets('branch handles with labels render without crashing', (
     tester,
   ) async {
