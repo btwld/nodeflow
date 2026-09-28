@@ -28,7 +28,7 @@ import 'unbounded.dart';
 ///
 /// This widget lives inside the canvas' transformed subtree, so pointer deltas
 /// it receives are already in graph coordinates (no zoom division needed).
-class NodeContainer<T, E> extends StatelessWidget {
+class NodeContainer<T, E> extends StatefulWidget {
   const NodeContainer({
     super.key,
     required this.node,
@@ -40,6 +40,9 @@ class NodeContainer<T, E> extends StatelessWidget {
     required this.onPortDragEnd,
     required this.onPortDragCancel,
     this.onPortHover,
+    this.onNodeTap,
+    this.onNodeDoubleTap,
+    this.onNodeContextMenu,
   });
 
   final FlowNode<T> node;
@@ -51,6 +54,16 @@ class NodeContainer<T, E> extends StatelessWidget {
 
   /// Reports port hover/exit to the app so it can render hover cards.
   final void Function(FlowPortAnchor? anchor)? onPortHover;
+
+  /// Called after a primary tap updates selection.
+  final ValueChanged<FlowNode<T>>? onNodeTap;
+
+  /// Called for a double tap instead of [onNodeTap].
+  final ValueChanged<FlowNode<T>>? onNodeDoubleTap;
+
+  /// Called for a secondary click or touch long press.
+  final void Function(FlowNode<T> node, Offset globalPosition)?
+  onNodeContextMenu;
 
   /// Called when a connection drag begins from a port on this node.
   final void Function(String nodeId, FlowPort port, Offset globalPosition)
@@ -64,6 +77,28 @@ class NodeContainer<T, E> extends StatelessWidget {
 
   /// Called when the connection drag is cancelled.
   final VoidCallback onPortDragCancel;
+
+  @override
+  State<NodeContainer<T, E>> createState() => _NodeContainerState<T, E>();
+}
+
+class _NodeContainerState<T, E> extends State<NodeContainer<T, E>> {
+  bool _additiveAtDown = false;
+
+  FlowNode<T> get node => widget.node;
+  FlowController<T, E> get controller => widget.controller;
+  FlowTheme get theme => widget.theme;
+  Widget get child => widget.child;
+  ValueChanged<FlowNode<T>>? get onNodeTap => widget.onNodeTap;
+  ValueChanged<FlowNode<T>>? get onNodeDoubleTap => widget.onNodeDoubleTap;
+  void Function(FlowNode<T>, Offset)? get onNodeContextMenu =>
+      widget.onNodeContextMenu;
+  void Function(FlowPortAnchor?)? get onPortHover => widget.onPortHover;
+  void Function(String, FlowPort, Offset) get onPortDragStart =>
+      widget.onPortDragStart;
+  void Function(Offset) get onPortDragUpdate => widget.onPortDragUpdate;
+  void Function(Offset) get onPortDragEnd => widget.onPortDragEnd;
+  VoidCallback get onPortDragCancel => widget.onPortDragCancel;
 
   @override
   Widget build(BuildContext context) {
@@ -80,32 +115,66 @@ class NodeContainer<T, E> extends StatelessWidget {
                 clipBehavior: Clip.none,
                 children: <Widget>[
                   RepaintBoundary(
-                    child: RawGestureDetector(
-                      behavior: HitTestBehavior.deferToChild,
-                      gestures: <Type, GestureRecognizerFactory>{
-                        TapGestureRecognizer:
-                            GestureRecognizerFactoryWithHandlers<
-                              TapGestureRecognizer
-                            >(
-                              TapGestureRecognizer.new,
-                              (recognizer) => recognizer.onTap = _handleTap,
-                            ),
-                        NonTrackpadPanGestureRecognizer:
-                            GestureRecognizerFactoryWithHandlers<
-                              NonTrackpadPanGestureRecognizer
-                            >(NonTrackpadPanGestureRecognizer.new, (
-                              recognizer,
-                            ) {
-                              recognizer
-                                ..onStart = _handleDragStart
-                                ..onUpdate = _handleDragUpdate
-                                ..onEnd = _handleDragEnd
-                                ..onCancel = _handleDragCancel;
-                            }),
-                      },
-                      child: _MeasureSize(
-                        onChange: (size) => node.measuredSize.value = size,
-                        child: child,
+                    child: Listener(
+                      onPointerDown: (_) => _additiveAtDown = _additivePressed,
+                      child: RawGestureDetector(
+                        behavior: HitTestBehavior.deferToChild,
+                        gestures: <Type, GestureRecognizerFactory>{
+                          TapGestureRecognizer:
+                              GestureRecognizerFactoryWithHandlers<
+                                TapGestureRecognizer
+                              >(TapGestureRecognizer.new, (recognizer) {
+                                recognizer
+                                  ..onTapCancel = () {
+                                    _additiveAtDown = false;
+                                  }
+                                  ..onTap = _handleTap
+                                  ..onSecondaryTapUp = onNodeContextMenu == null
+                                      ? null
+                                      : (details) => onNodeContextMenu!(
+                                          node,
+                                          details.globalPosition,
+                                        );
+                              }),
+                          if (onNodeDoubleTap != null)
+                            DoubleTapGestureRecognizer:
+                                GestureRecognizerFactoryWithHandlers<
+                                  DoubleTapGestureRecognizer
+                                >(
+                                  DoubleTapGestureRecognizer.new,
+                                  (recognizer) =>
+                                      recognizer.onDoubleTap = _handleDoubleTap,
+                                ),
+                          if (onNodeContextMenu != null)
+                            LongPressGestureRecognizer:
+                                GestureRecognizerFactoryWithHandlers<
+                                  LongPressGestureRecognizer
+                                >(
+                                  LongPressGestureRecognizer.new,
+                                  (recognizer) =>
+                                      recognizer.onLongPressStart = (details) =>
+                                          onNodeContextMenu!(
+                                            node,
+                                            details.globalPosition,
+                                          ),
+                                ),
+                          NonTrackpadPanGestureRecognizer:
+                              GestureRecognizerFactoryWithHandlers<
+                                NonTrackpadPanGestureRecognizer
+                              >(NonTrackpadPanGestureRecognizer.new, (
+                                recognizer,
+                              ) {
+                                recognizer
+                                  ..onStart = _handleDragStart
+                                  ..onUpdate = _handleDragUpdate
+                                  ..onEnd = _handleDragEnd
+                                  ..onCancel = _handleDragCancel;
+                              }),
+                        },
+                        child: _MeasureSize(
+                          onChange: (size) => node.measuredSize.value = size,
+                          child: child,
+                        ),
                       ),
                     ),
                   ),
@@ -195,11 +264,18 @@ class NodeContainer<T, E> extends StatelessWidget {
   }
 
   void _handleTap() {
-    if (_additivePressed) {
+    if (_additiveAtDown) {
       controller.toggle(node.id);
     } else {
       controller.select(<String>[node.id]);
     }
+    _additiveAtDown = false;
+    onNodeTap?.call(node);
+  }
+
+  void _handleDoubleTap() {
+    controller.select(<String>[node.id]);
+    onNodeDoubleTap?.call(node);
   }
 
   void _handleDragStart(DragStartDetails details) {

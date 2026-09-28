@@ -42,6 +42,9 @@ class NodeFlow<T, E> extends StatefulWidget {
     this.snapGuides = true,
     this.onConnect,
     this.isValidConnection,
+    this.onNodeTap,
+    this.onNodeDoubleTap,
+    this.onNodeContextMenu,
     this.onPortHover,
   });
 
@@ -102,6 +105,21 @@ class NodeFlow<T, E> extends StatefulWidget {
   /// at drop time. Omit it to allow every otherwise compatible connection.
   /// Programmatic calls to [FlowController.addEdge] do not use this predicate.
   final bool Function(FlowConnectionRequest request)? isValidConnection;
+
+  /// Called after the canvas selects or toggles a node on a primary tap.
+  /// Interactive controls inside [nodeBuilder] retain their own gestures.
+  final ValueChanged<FlowNode<T>>? onNodeTap;
+
+  /// Called instead of [onNodeTap] after a double tap selects the node.
+  /// Enabling this callback delays single-tap recognition by Flutter's
+  /// double-tap interval.
+  final ValueChanged<FlowNode<T>>? onNodeDoubleTap;
+
+  /// Called on a secondary click or touch long press with global coordinates.
+  /// The canvas does not change selection for this gesture; the app can open
+  /// its own context menu or details panel at [globalPosition].
+  final void Function(FlowNode<T> node, Offset globalPosition)?
+  onNodeContextMenu;
 
   /// Called when a port handle is hovered (with the anchor) or unhovered (with
   /// `null`), so the app can render hover cards.
@@ -601,6 +619,9 @@ class _NodeFlowState<T, E> extends State<NodeFlow<T, E>>
                         controller: _controller,
                         theme: theme,
                         nodeBuilder: widget.nodeBuilder,
+                        onNodeTap: widget.onNodeTap,
+                        onNodeDoubleTap: widget.onNodeDoubleTap,
+                        onNodeContextMenu: widget.onNodeContextMenu,
                         onPortHover: widget.onPortHover,
                         onPortDragStart: _onPortDragStart,
                         onPortDragUpdate: _onPortDragUpdate,
@@ -701,6 +722,9 @@ class _NodeLayer<T, E> extends StatelessWidget {
     required this.onPortDragUpdate,
     required this.onPortDragEnd,
     required this.onPortDragCancel,
+    this.onNodeTap,
+    this.onNodeDoubleTap,
+    this.onNodeContextMenu,
     this.onPortHover,
   });
 
@@ -708,6 +732,10 @@ class _NodeLayer<T, E> extends StatelessWidget {
   final FlowTheme theme;
   final Widget Function(BuildContext context, FlowNode<T> node) nodeBuilder;
   final void Function(FlowPortAnchor? anchor)? onPortHover;
+  final ValueChanged<FlowNode<T>>? onNodeTap;
+  final ValueChanged<FlowNode<T>>? onNodeDoubleTap;
+  final void Function(FlowNode<T> node, Offset globalPosition)?
+  onNodeContextMenu;
   final void Function(String nodeId, FlowPort port, Offset globalPosition)
   onPortDragStart;
   final void Function(Offset globalPosition) onPortDragUpdate;
@@ -730,6 +758,9 @@ class _NodeLayer<T, E> extends StatelessWidget {
                 controller: controller,
                 theme: theme,
                 onPortHover: onPortHover,
+                onNodeTap: onNodeTap,
+                onNodeDoubleTap: onNodeDoubleTap,
+                onNodeContextMenu: onNodeContextMenu,
                 onPortDragStart: onPortDragStart,
                 onPortDragUpdate: onPortDragUpdate,
                 onPortDragEnd: onPortDragEnd,

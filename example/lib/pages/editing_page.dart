@@ -45,6 +45,22 @@ class _EditingPageState extends State<EditingPage> {
     super.dispose();
   }
 
+  void _showNodeDetails(FlowNode<DemoNode> node) {
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(node.data.title),
+        content: Text('Node ID: ${node.id}'),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -91,6 +107,8 @@ class _EditingPageState extends State<EditingPage> {
         children: <Widget>[
           NodeFlow<DemoNode, Object?>(
             controller: _controller,
+            onNodeDoubleTap: _showNodeDetails,
+            onNodeContextMenu: (node, _) => _showNodeDetails(node),
             nodeBuilder: (context, node) => DemoNodeCard(
               key: ValueKey<String>('node-${node.id}'),
               node: node,
@@ -117,7 +135,8 @@ class _HintCard extends StatelessWidget {
       ),
       child: const Text(
         'Drag a node (snaps on release) · click to select · shift-click to '
-        'multi-select · shift-drag empty space to marquee',
+        'multi-select · double-click or right-click for details · shift-drag '
+        'empty space to marquee',
         style: TextStyle(color: Color(0xDDFFFFFF), fontSize: 12),
       ),
     );
