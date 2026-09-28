@@ -88,11 +88,7 @@ void main() {
 
     first.beginConnection(
       'node',
-      const FlowPort(
-        id: 'out',
-        side: PortSide.right,
-        kind: PortKind.output,
-      ),
+      const FlowPort(id: 'out', side: PortSide.right, kind: PortKind.output),
       GraphPosition.zero,
     );
     expect(first.mode.value, FlowInteractionMode.draggingConnection);
