@@ -19,8 +19,12 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
+      - run: flutter pub get
+        working-directory: example
       - run: dart format --output=none --set-exit-if-changed lib test example/lib
       - run: flutter analyze
+      - run: flutter analyze
+        working-directory: example
 
   test:
     name: test (${{ matrix.name }})
@@ -42,3 +46,7 @@ jobs:
           cache: true
       - run: flutter pub get
       - run: flutter test
+      - run: flutter pub get
+        working-directory: example
+      - run: flutter test
+        working-directory: example
