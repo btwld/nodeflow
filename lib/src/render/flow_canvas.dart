@@ -417,6 +417,10 @@ class _NodeFlowState<T, E> extends State<NodeFlow<T, E>>
     }
   }
 
+  void _onPortDragCancel() {
+    _controller.endConnection();
+  }
+
   /// Finds the nearest compatible port (opposite kind, different node) whose
   /// screen anchor is within tolerance of [localScreen].
   (String, FlowPort)? _hitTestPort(
@@ -544,6 +548,7 @@ class _NodeFlowState<T, E> extends State<NodeFlow<T, E>>
                         onPortDragStart: _onPortDragStart,
                         onPortDragUpdate: _onPortDragUpdate,
                         onPortDragEnd: _onPortDragEnd,
+                        onPortDragCancel: _onPortDragCancel,
                       ),
                     ),
                   ),
@@ -638,6 +643,7 @@ class _NodeLayer<T, E> extends StatelessWidget {
     required this.onPortDragStart,
     required this.onPortDragUpdate,
     required this.onPortDragEnd,
+    required this.onPortDragCancel,
     this.onPortHover,
   });
 
@@ -649,6 +655,7 @@ class _NodeLayer<T, E> extends StatelessWidget {
   onPortDragStart;
   final void Function(Offset globalPosition) onPortDragUpdate;
   final void Function(Offset globalPosition) onPortDragEnd;
+  final VoidCallback onPortDragCancel;
 
   @override
   Widget build(BuildContext context) {
@@ -669,6 +676,7 @@ class _NodeLayer<T, E> extends StatelessWidget {
                 onPortDragStart: onPortDragStart,
                 onPortDragUpdate: onPortDragUpdate,
                 onPortDragEnd: onPortDragEnd,
+                onPortDragCancel: onPortDragCancel,
                 child: nodeBuilder(context, node),
               ),
           ],
