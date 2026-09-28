@@ -47,38 +47,56 @@ dependencies:
 import 'package:node_flow/node_flow.dart';
 import 'package:flutter/material.dart';
 
-final controller = FlowController<String, void>();
+class EditorScreen extends StatefulWidget {
+  const EditorScreen({super.key});
 
-void setUpGraph() {
-  controller.addNode(FlowNode(
-    id: 'a',
-    type: 'card',
-    data: 'Hello',
-    position: const GraphPosition(Offset(80, 120)),
-    ports: const [
-      FlowPort(id: 'out', side: PortSide.right, kind: PortKind.output),
-    ],
-  ));
-  controller.addNode(FlowNode(
-    id: 'b',
-    type: 'card',
-    data: 'World',
-    position: const GraphPosition(Offset(420, 200)),
-    ports: const [
-      FlowPort(id: 'in', side: PortSide.left, kind: PortKind.input),
-    ],
-  ));
-  controller.addEdge(FlowEdge(
-    id: 'a-b',
-    sourceNodeId: 'a',
-    sourcePortId: 'out',
-    targetNodeId: 'b',
-    targetPortId: 'in',
-  ));
+  @override
+  State<EditorScreen> createState() => _EditorScreenState();
 }
 
-class EditorScreen extends StatelessWidget {
-  const EditorScreen({super.key});
+class _EditorScreenState extends State<EditorScreen> {
+  late final FlowController<String, void> controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = FlowController<String, void>();
+    _setUpGraph();
+  }
+
+  void _setUpGraph() {
+    controller.addNode(FlowNode(
+      id: 'a',
+      type: 'card',
+      data: 'Hello',
+      position: const GraphPosition(Offset(80, 120)),
+      ports: const [
+        FlowPort(id: 'out', side: PortSide.right, kind: PortKind.output),
+      ],
+    ));
+    controller.addNode(FlowNode(
+      id: 'b',
+      type: 'card',
+      data: 'World',
+      position: const GraphPosition(Offset(420, 200)),
+      ports: const [
+        FlowPort(id: 'in', side: PortSide.left, kind: PortKind.input),
+      ],
+    ));
+    controller.addEdge(FlowEdge(
+      id: 'a:out-b:in',
+      sourceNodeId: 'a',
+      sourcePortId: 'out',
+      targetNodeId: 'b',
+      targetPortId: 'in',
+    ));
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -86,10 +104,12 @@ class EditorScreen extends StatelessWidget {
       controller: controller,
       nodeBuilder: (context, node) => SizedBox(
         width: 200,
-        child: Card(child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Text(node.data),
-        )),
+        child: Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text(node.data),
+          ),
+        ),
       ),
       onConnect: (request) {
         controller.addEdge(FlowEdge(
