@@ -28,9 +28,10 @@ Future<Offset> pumpConnect(
   FlowController<String, String> controller,
   bool Function(FlowConnectionRequest request) onConnect, {
   bool Function(FlowConnectionRequest request)? isValidConnection,
+  List<FlowPort> targetPorts = const <FlowPort>[_inPort],
 }) async {
   controller.addNode(node('a', 100, 100, const <FlowPort>[_outPort]));
-  controller.addNode(node('b', 400, 100, const <FlowPort>[_inPort]));
+  controller.addNode(node('b', 400, 100, targetPorts));
 
   await tester.pumpWidget(
     MaterialApp(
@@ -306,6 +307,62 @@ void main() {
     await tester.pump();
     expect(proposals, callsBeforeDuplicate);
     expect(accepted, 0);
+  });
+
+  testWidgets('invalid nearest port does not redirect to adjacent input', (
+    tester,
+  ) async {
+    final c = FlowController<String, String>();
+    addTearDown(c.dispose);
+    var allowNearest = false;
+    final accepted = <FlowConnectionRequest>[];
+    final tl = await pumpConnect(
+      tester,
+      c,
+      (request) {
+        accepted.add(request);
+        return true;
+      },
+      targetPorts: const <FlowPort>[
+        FlowPort(id: 'near', side: PortSide.left, kind: PortKind.input),
+        FlowPort(id: 'far', side: PortSide.left, kind: PortKind.input),
+      ],
+      isValidConnection: (request) =>
+          request.targetPortId != 'near' || allowNearest,
+    );
+    final source = tl + const Offset(220, 130);
+    // Inputs are at y=120 and y=140. The pointer is inside both hit radii,
+    // but 8px from 'near' and 12px from 'far'.
+    final target = tl + const Offset(400, 128);
+
+    final rejected = await tester.startGesture(
+      source,
+      kind: PointerDeviceKind.mouse,
+    );
+    await rejected.moveTo(tl + const Offset(300, 130));
+    await tester.pump();
+    await rejected.moveTo(target);
+    await tester.pump();
+    expect(c.pendingConnection.value?.hasTarget, isFalse);
+    await rejected.up();
+    await tester.pump();
+    expect(accepted, isEmpty);
+
+    allowNearest = true;
+    final changed = await tester.startGesture(
+      source,
+      kind: PointerDeviceKind.mouse,
+    );
+    await changed.moveTo(tl + const Offset(300, 130));
+    await tester.pump();
+    await changed.moveTo(target);
+    await tester.pump();
+    expect(c.pendingConnection.value?.targetPort?.id, 'near');
+    allowNearest = false;
+    await changed.up();
+    await tester.pump();
+    expect(accepted, isEmpty);
+    expect(c.pendingConnection.value, isNull);
   });
 
   testWidgets('validator errors end the gesture during hover and drop', (

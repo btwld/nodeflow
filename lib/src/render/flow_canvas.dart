@@ -474,15 +474,16 @@ class _NodeFlowState<T, E> extends State<NodeFlow<T, E>>
         if (port.kind == sourcePort.kind) continue; // need opposite kind
         final anchorScreen = vp.toScreen(portAnchor(node, port)).offset;
         final distance = (anchorScreen - localScreen).distance;
-        if (distance <= tolerance &&
-            distance < bestDistance &&
-            _allowsConnection(sourceNodeId, sourcePort, node.id, port)) {
+        if (distance <= tolerance && distance < bestDistance) {
           bestDistance = distance;
           best = (node.id, port);
         }
       }
     }
-    return best;
+    if (best == null) return null;
+    return _allowsConnection(sourceNodeId, sourcePort, best.$1, best.$2)
+        ? best
+        : null;
   }
 
   bool _allowsConnection(
