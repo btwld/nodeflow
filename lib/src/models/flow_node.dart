@@ -49,13 +49,18 @@ final class FlowNode<T> {
   final ValueNotifier<Size> measuredSize;
 
   /// Whether this node is part of the current selection.
+  ///
+  /// Once the node belongs to a [FlowController], change selection through the
+  /// controller's selection methods so this notifier and the controller's
+  /// selected-id set stay synchronized.
   final ValueNotifier<bool> selected;
 
   /// Stacking order; higher paints on top.
   final ValueNotifier<int> zIndex;
 
-  /// When `true` the node cannot be dragged via the UI. Programmatic moves
-  /// still apply.
+  /// When `true` the node cannot be moved through controller drag/move
+  /// operations. Callers that own the graph can still assign [position]
+  /// directly when they intentionally need to reposition a locked node.
   bool locked;
 
   /// Input ports (in declaration order).
