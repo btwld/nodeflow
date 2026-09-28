@@ -5,10 +5,9 @@ import '../demo_node.dart';
 
 /// Drag-to-connect with application-owned validation.
 ///
-/// The app owns the model: [NodeFlow.onConnect] validates the request
-/// (rejecting a second edge
-/// into an already-connected input) and adds the edge itself. Identical
-/// connections are deduped by the canvas and never reach the callback.
+/// The app rejects occupied inputs through [NodeFlow.isValidConnection] and
+/// adds accepted edges in [NodeFlow.onConnect]. Identical connections are
+/// deduped by the canvas before the app predicate runs.
 class ConnectPage extends StatefulWidget {
   const ConnectPage({super.key});
 
@@ -18,7 +17,6 @@ class ConnectPage extends StatefulWidget {
 
 class _ConnectPageState extends State<ConnectPage> {
   late final FlowController<DemoNode, Object?> _controller;
-  final _messengerKey = GlobalKey<ScaffoldMessengerState>();
   final ValueNotifier<FlowPortAnchor?> _hovered =
       ValueNotifier<FlowPortAnchor?>(null);
 
@@ -71,23 +69,16 @@ class _ConnectPageState extends State<ConnectPage> {
     super.dispose();
   }
 
+  bool _isValidConnection(FlowConnectionRequest request) =>
+      !_controller.edges.any(
+        (edge) =>
+            edge.targetNodeId == request.targetNodeId &&
+            edge.targetPortId == request.targetPortId,
+      );
+
   bool _onConnect(FlowConnectionRequest request) {
-    final inputTaken = _controller.edges.any(
-      (e) =>
-          e.targetNodeId == request.targetNodeId &&
-          e.targetPortId == request.targetPortId,
-    );
-    if (inputTaken) {
-      _messengerKey.currentState
-        ?..hideCurrentSnackBar()
-        ..showSnackBar(
-          const SnackBar(
-            duration: Duration(milliseconds: 1400),
-            content: Text('That input is already connected — rejected.'),
-          ),
-        );
-      return false;
-    }
+    // Recheck when accepting; application state may change after hover.
+    if (!_isValidConnection(request)) return false;
 
     _controller.addEdge(
       FlowEdge<Object?>(
@@ -103,34 +94,32 @@ class _ConnectPageState extends State<ConnectPage> {
 
   @override
   Widget build(BuildContext context) {
-    return ScaffoldMessenger(
-      key: _messengerKey,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('04 · Connect'),
-          actions: <Widget>[
-            IconButton(
-              tooltip: 'Fit to view',
-              onPressed: () => _controller.fitView(padding: 0.2),
-              icon: const Icon(Icons.fit_screen),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('04 · Connect'),
+        actions: <Widget>[
+          IconButton(
+            tooltip: 'Fit to view',
+            onPressed: () => _controller.fitView(padding: 0.2),
+            icon: const Icon(Icons.fit_screen),
+          ),
+        ],
+      ),
+      body: Stack(
+        children: <Widget>[
+          NodeFlow<DemoNode, Object?>(
+            controller: _controller,
+            onConnect: _onConnect,
+            isValidConnection: _isValidConnection,
+            onPortHover: (anchor) => _hovered.value = anchor,
+            nodeBuilder: (context, node) => DemoNodeCard(
+              key: ValueKey<String>('node-${node.id}'),
+              node: node,
             ),
-          ],
-        ),
-        body: Stack(
-          children: <Widget>[
-            NodeFlow<DemoNode, Object?>(
-              controller: _controller,
-              onConnect: _onConnect,
-              onPortHover: (anchor) => _hovered.value = anchor,
-              nodeBuilder: (context, node) => DemoNodeCard(
-                key: ValueKey<String>('node-${node.id}'),
-                node: node,
-              ),
-            ),
-            _HoverLabel(hovered: _hovered),
-            const Positioned(left: 12, bottom: 12, child: _HintCard()),
-          ],
-        ),
+          ),
+          _HoverLabel(hovered: _hovered),
+          const Positioned(left: 12, bottom: 12, child: _HintCard()),
+        ],
       ),
     );
   }
@@ -188,7 +177,7 @@ class _HintCard extends StatelessWidget {
       ),
       child: const Text(
         'Drag from a right (output) handle to the left (input) handle to '
-        'connect · the target accepts one input · dragging the same pair twice '
+        'connect · an occupied input is not highlighted · dragging the same pair twice '
         'is deduped',
         style: TextStyle(color: Color(0xDDFFFFFF), fontSize: 12),
       ),

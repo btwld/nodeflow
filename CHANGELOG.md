@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Added optional `NodeFlow.isValidConnection` for normalized application
+  rules during connection hover and drop; rejected ports are not highlighted.
+- The Connect demo uses that predicate to reject occupied inputs before drop.
+
 - The editing demo now demonstrates focusing a node and updating an
   application-owned status; API and example docs describe current behavior.
 
