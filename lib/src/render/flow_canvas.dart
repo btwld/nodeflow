@@ -170,6 +170,7 @@ class _NodeFlowState<T, E> extends State<NodeFlow<T, E>>
   void didUpdateWidget(covariant NodeFlow<T, E> oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!identical(oldWidget.controller, widget.controller)) {
+      _cancelControllerInteraction(oldWidget.controller);
       _detachController(oldWidget.controller);
       _attachController(widget.controller);
       _syncTransformFromController();
@@ -188,10 +189,25 @@ class _NodeFlowState<T, E> extends State<NodeFlow<T, E>>
   void dispose() {
     HardwareKeyboard.instance.removeHandler(_onKeyEvent);
     _transformationController.removeListener(_onTransformChanged);
+    _cancelControllerInteraction(_controller);
     _detachController(_controller);
     _dashController.dispose();
     _transformationController.dispose();
     super.dispose();
+  }
+
+  void _cancelControllerInteraction(FlowController<T, E> controller) {
+    switch (controller.mode.value) {
+      case FlowInteractionMode.draggingNode:
+        controller.cancelNodeDrag();
+      case FlowInteractionMode.draggingConnection:
+        controller.endConnection();
+      case FlowInteractionMode.marquee:
+        controller.endMarquee();
+      case FlowInteractionMode.idle:
+      case FlowInteractionMode.panning:
+        break;
+    }
   }
 
   void _attachController(FlowController<T, E> controller) {
