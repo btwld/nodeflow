@@ -45,7 +45,9 @@ Offset _cardOffset(WidgetTester tester) {
 }
 
 void main() {
-  testWidgets('swapping controllers updates the viewport source', (tester) async {
+  testWidgets('swapping controllers updates the viewport source', (
+    tester,
+  ) async {
     final first = _controller(const FlowViewport());
     final second = _controller(
       const FlowViewport(x: 120, y: 80, zoom: 1.5),
@@ -75,7 +77,9 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('controllers remain usable after canvas disposal', (tester) async {
+  testWidgets('controllers remain usable after canvas disposal', (
+    tester,
+  ) async {
     final first = _controller(const FlowViewport());
     final second = _controller(const FlowViewport());
     addTearDown(first.dispose);
