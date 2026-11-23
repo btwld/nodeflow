@@ -2,25 +2,25 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
+import '../controller/alignment_snap.dart';
 import '../controller/flow_controller.dart';
 import '../controller/interaction_state.dart';
 import '../edges/edge_style.dart';
+import '../geometry/port_anchor.dart';
 import '../models/connection.dart';
 import '../models/coordinates.dart';
 import '../models/flow_edge.dart';
 import '../models/flow_node.dart';
 import '../models/flow_port.dart';
 import '../models/flow_viewport.dart';
-import '../geometry/port_anchor.dart';
-import '../controller/alignment_snap.dart';
 import '../theme/flow_theme.dart';
 import 'connection_preview.dart';
 import 'edges_painter.dart';
 import 'grid_painter.dart';
 import 'marquee.dart';
 import 'minimap.dart';
-import 'snap_guides_painter.dart';
 import 'node_container.dart';
+import 'snap_guides_painter.dart';
 import 'unbounded.dart';
 
 /// A customizable node canvas inspired by React Flow.

@@ -6,14 +6,6 @@
 /// Flutter-native (`ChangeNotifier`/`ValueNotifier`) state.
 library;
 
-// Models
-export 'src/models/connection.dart';
-export 'src/models/coordinates.dart';
-export 'src/models/flow_edge.dart';
-export 'src/models/flow_node.dart';
-export 'src/models/flow_port.dart';
-export 'src/models/flow_viewport.dart';
-
 // Controller
 export 'src/controller/alignment_snap.dart';
 export 'src/controller/flow_controller.dart';
@@ -26,6 +18,14 @@ export 'src/edges/path_segments.dart';
 
 // Geometry
 export 'src/geometry/port_anchor.dart';
+
+// Models
+export 'src/models/connection.dart';
+export 'src/models/coordinates.dart';
+export 'src/models/flow_edge.dart';
+export 'src/models/flow_node.dart';
+export 'src/models/flow_port.dart';
+export 'src/models/flow_viewport.dart';
 
 // Rendering
 export 'src/render/flow_canvas.dart';

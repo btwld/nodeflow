@@ -30,11 +30,11 @@ void main() {
               fitViewOnLoad: false,
               minimap: false,
               // Fixed width, height determined by intrinsic content.
-              nodeBuilder: (context, node) => SizedBox(
+              nodeBuilder: (context, node) => const SizedBox(
                 width: 256,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
-                  children: const <Widget>[
+                  children: <Widget>[
                     SizedBox(height: 40),
                     SizedBox(height: 24),
                     SizedBox(height: 16),
