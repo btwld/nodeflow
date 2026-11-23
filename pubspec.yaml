@@ -21,6 +21,10 @@ dependencies:
     sdk: flutter
 
 dev_dependencies:
+  bitwild_analysis:
+    git:
+      url: https://github.com/btwld/lints.git
+      path: packages/bitwild_analysis
+      ref: v0.3.0
   flutter_test:
     sdk: flutter
-  flutter_lints: ^6.0.0

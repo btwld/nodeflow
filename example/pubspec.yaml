@@ -14,12 +14,16 @@ dependencies:
     path: ../
 
 dev_dependencies:
+  bitwild_analysis:
+    git:
+      url: https://github.com/btwld/lints.git
+      path: packages/bitwild_analysis
+      ref: v0.3.0
   flutter_test:
     sdk: flutter
+  image: ^4.9.1
   integration_test:
     sdk: flutter
-  image: ^4.9.1
-  flutter_lints: ^6.0.0
 
 flutter:
   uses-material-design: true

@@ -1,10 +1,8 @@
-include: package:flutter_lints/flutter.yaml
+include:
+  - package:bitwild_analysis/flutter.yaml
+  - package:bitwild_analysis/plugin.yaml
 
 analyzer:
   exclude:
     - build/**
     - web/**
-  language:
-    strict-casts: true
-    strict-inference: true
-    strict-raw-types: true
