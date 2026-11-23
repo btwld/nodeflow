@@ -4,8 +4,8 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show RenderCustomPaint;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:node_flow/src/render/edges_painter.dart';
 import 'package:node_flow/node_flow.dart';
+import 'package:node_flow/src/render/edges_painter.dart';
 
 FlowNode<String> node(
   String id,
@@ -243,7 +243,7 @@ void main() {
       // A pixel on the badge fill (left of the central "!" ink) is amber.
       const x = 44;
       const y = 50;
-      final i = (y * 100 + x) * 4;
+      const i = (y * 100 + x) * 4;
       expect(bytes!.getUint8(i), greaterThan(200)); // R of #F5B544 == 0xF5
       expect(bytes.getUint8(i + 3), greaterThan(200)); // opaque
     });

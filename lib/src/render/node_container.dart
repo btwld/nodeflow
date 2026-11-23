@@ -222,7 +222,8 @@ class _NodeContainerState<T, E> extends State<NodeContainer<T, E>> {
             port: port,
             theme: theme,
             highlighted: highlighted,
-            onHoverChanged: (entered) => _reportHover(port, size, entered),
+            onHoverChanged: (entered) =>
+                _reportHover(port, size, entered: entered),
             onDragStart: (g) => onPortDragStart(node.id, port, g),
             onDragUpdate: onPortDragUpdate,
             onDragEnd: onPortDragEnd,
@@ -233,7 +234,7 @@ class _NodeContainerState<T, E> extends State<NodeContainer<T, E>> {
     );
   }
 
-  void _reportHover(FlowPort port, double size, bool entered) {
+  void _reportHover(FlowPort port, double size, {required bool entered}) {
     final handler = onPortHover;
     if (handler == null) return;
     if (!entered) {

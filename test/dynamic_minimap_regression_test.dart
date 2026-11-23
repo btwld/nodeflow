@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show RenderCustomPaint;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:node_flow/src/render/edges_painter.dart';
 import 'package:node_flow/node_flow.dart';
+import 'package:node_flow/src/render/edges_painter.dart';
 
 FlowNode<String> node(String id) => FlowNode(
   id: id,
