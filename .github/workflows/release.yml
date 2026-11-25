@@ -23,34 +23,34 @@ permissions: {}
 jobs:
   prepare:
     if: github.event_name == 'workflow_dispatch'
-    uses: btwld/dart-actions/.github/workflows/release-pr.yml@8118f83bc2081cef097305512c6d8ed4628bf6bd
+    uses: btwld/dart-actions/.github/workflows/release-pr.yml@e6237f1a11a89b6a4a893cfe80f264747dbc8950
     permissions:
       contents: write
       pull-requests: write
     with:
       version: ${{ inputs.version }}
       app_client_id: ${{ vars.RELEASE_APP_CLIENT_ID }}
-      tool_ref: 8118f83bc2081cef097305512c6d8ed4628bf6bd
+      tool_ref: e6237f1a11a89b6a4a893cfe80f264747dbc8950
     secrets:
       app_private_key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
 
   tag:
     if: github.event_name == 'push' && github.ref_type == 'branch' && vars.RELEASE_APP_CLIENT_ID != ''
-    uses: btwld/dart-actions/.github/workflows/release-tag.yml@8118f83bc2081cef097305512c6d8ed4628bf6bd
+    uses: btwld/dart-actions/.github/workflows/release-tag.yml@e6237f1a11a89b6a4a893cfe80f264747dbc8950
     permissions:
       contents: read
     with:
       app_client_id: ${{ vars.RELEASE_APP_CLIENT_ID }}
-      tool_ref: 8118f83bc2081cef097305512c6d8ed4628bf6bd
+      tool_ref: e6237f1a11a89b6a4a893cfe80f264747dbc8950
     secrets:
       app_private_key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
 
   publish:
     if: github.ref_type == 'tag'
-    uses: btwld/dart-actions/.github/workflows/release-publish.yml@8118f83bc2081cef097305512c6d8ed4628bf6bd
+    uses: btwld/dart-actions/.github/workflows/release-publish.yml@e6237f1a11a89b6a4a893cfe80f264747dbc8950
     permissions:
-      contents: read
+      contents: write # the GitHub release after the upload
       id-token: write
     with:
       approval_environment: Release
-      tool_ref: 8118f83bc2081cef097305512c6d8ed4628bf6bd
+      tool_ref: e6237f1a11a89b6a4a893cfe80f264747dbc8950
