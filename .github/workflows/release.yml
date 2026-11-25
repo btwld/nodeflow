@@ -1,0 +1,56 @@
+name: Release
+
+# One workflow for the whole release, from btwld/dart-actions v2:
+# - Run it by hand to open a release PR with the next version and changelog.
+# - Merging that PR to main tags the version and creates a GitHub release.
+# - The tag push checks, tests and publishes node_flow to pub.dev after an
+#   approval in the Release environment.
+# Configuration lives in .github/release.yaml.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Exact version. Leave empty to let the commits decide.
+        required: false
+        default: ''
+  push:
+    branches: [main]
+    tags: ['v[0-9]+.[0-9]+.[0-9]+*']
+
+permissions: {}
+
+jobs:
+  prepare:
+    if: github.event_name == 'workflow_dispatch'
+    uses: btwld/dart-actions/.github/workflows/release-pr.yml@e6237f1a11a89b6a4a893cfe80f264747dbc8950
+    permissions:
+      contents: write
+      pull-requests: write
+    with:
+      version: ${{ inputs.version }}
+      app_client_id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+      tool_ref: e6237f1a11a89b6a4a893cfe80f264747dbc8950
+    secrets:
+      app_private_key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
+  tag:
+    if: github.event_name == 'push' && github.ref_type == 'branch' && vars.RELEASE_APP_CLIENT_ID != ''
+    uses: btwld/dart-actions/.github/workflows/release-tag.yml@e6237f1a11a89b6a4a893cfe80f264747dbc8950
+    permissions:
+      contents: read
+    with:
+      app_client_id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+      tool_ref: e6237f1a11a89b6a4a893cfe80f264747dbc8950
+    secrets:
+      app_private_key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
+  publish:
+    if: github.ref_type == 'tag'
+    uses: btwld/dart-actions/.github/workflows/release-publish.yml@e6237f1a11a89b6a4a893cfe80f264747dbc8950
+    permissions:
+      contents: write # the GitHub release after the upload
+      id-token: write
+    with:
+      approval_environment: Release
+      tool_ref: e6237f1a11a89b6a4a893cfe80f264747dbc8950

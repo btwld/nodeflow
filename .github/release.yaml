@@ -1,0 +1,12 @@
+# Release configuration for btwld/dart-actions v2. See
+# https://github.com/btwld/dart-actions/blob/main/docs/RELEASE_V2.md
+packages:
+  - path: .
+    tag: v{{version}} # matches the pub.dev automated publishing pattern
+
+# Checks the old publish workflow ran that the release tool does not run
+# itself: formatting, and the example app's tests.
+pre_publish: |
+  dart format --output=none --set-exit-if-changed lib test example/lib example/test example/integration_test example/test_driver
+  cd example
+  flutter test
